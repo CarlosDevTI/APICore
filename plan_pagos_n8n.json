@@ -1,0 +1,85 @@
+{
+  "name": "Disparador de Plan de Pagos a PDF",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "* * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "Trigger Cada Minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8000/api/consulta-automatica/",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "consultar_api_pdf",
+      "name": "Llamar a API para generar PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "notificaciones@tucooperativa.com",
+        "toEmail": "destinatario@ejemplo.com",
+        "subject": "Planes de Pago Generados - {{ new Date().toISOString() }}",
+        "text": "Se adjunta el PDF con los planes de pago generados automáticamente.",
+        "options": {}
+      },
+      "id": "enviar_email",
+      "name": "Enviar Email con PDF",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [930, 300],
+      "credentials": {
+        "emailSend": {
+          "id": "YOUR_EMAIL_CREDENTIAL_ID",
+          "name": "Your Email Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Trigger Cada Minuto": {
+      "main": [
+        [
+          {
+            "node": "Llamar a API para generar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar a API para generar PDF": {
+      "main": [
+        [
+          {
+            "node": "Enviar Email con PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

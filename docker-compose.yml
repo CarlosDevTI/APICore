@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=api_db
+      - POSTGRES_USER=api_user
+      - POSTGRES_PASSWORD=api_password
+    ports:
+      - "5433:5432"
+
+  api:
+    build: .
+    env_file:
+      - .env
+    command: gunicorn --bind 0.0.0.0:8010 --workers 3 --timeout 120 APICore.wsgi:application
+    ports:
+      - "8010:8010"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

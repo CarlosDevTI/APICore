@@ -1,0 +1,21 @@
+#? Entorno virtual de Python
+venv/
+*/venv/
+
+#? Base de datos
+db.sqlite3
+*.sqlite3
+
+#? Archivos de caché de Python
+__pycache__/
+*.pyc
+
+#? Archivos de configuración de IDEs
+.vscode/
+.idea/
+
+#? Archivos de registro
+*.log
+
+#? Archivos de variabels de entorno
+.env
