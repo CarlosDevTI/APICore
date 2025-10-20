@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import ListPendingFlowsView, GeneratePdfView
+from .views import ListarFlujosPendientes, GenerarPDF
 
 urlpatterns = [
-    path('listar-flujos-pendientes/', ListPendingFlowsView.as_view(), name='listar-flujos-pendientes'),
-    path('generar-pdf/<int:flujo_id>/', GeneratePdfView.as_view(), name='generar-pdf'),
+    path('listar-flujos-pendientes/', ListarFlujosPendientes.as_view(), name='listar-flujos-pendientes'),
+    path('generar-pdf/<int:flujo_id>/', GenerarPDF.as_view(), name='generar-pdf'),
 ]
