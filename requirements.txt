@@ -69,3 +69,4 @@ tzdata==2024.2
 uritemplate==4.2.0
 urllib3==2.5.0
 virtualenv==20.29.1
+gunicorn==21.2.0
