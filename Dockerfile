@@ -7,9 +7,11 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-#? Instalar dependencias del sistema para Oracle
+#? Instalar dependencias del sistema para PostgreSQL y compilación
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    python3-dev \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,8 +20,13 @@ WORKDIR /app
 
 #? Copiar requirements y instalar dependencias Python
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip install --upgrade pip
+
+#? Instalar psycopg2-binary primero (más compatible)
+RUN pip install psycopg2-binary
+
+#? Luego instalar el resto de dependencias
+RUN pip install -r requirements.txt
 
 #? Copiar el proyecto
 COPY . .
@@ -27,8 +34,9 @@ COPY . .
 #? Crear directorio para archivos estáticos
 RUN mkdir -p /app/staticfiles
 
-#? Colectar archivos estáticos
-RUN python manage.py collectstatic --noinput
+#? Colectar archivos estáticos (SOLO si no requiere conexión a BD)
+#? Si tu collectstatic requiere BD, comenta esta línea:
+# RUN python manage.py collectstatic --noinput
 
 #? Exponer puerto
 EXPOSE 8010
