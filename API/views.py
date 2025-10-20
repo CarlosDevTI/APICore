@@ -122,7 +122,7 @@ class GenerarPDF(APIView):
 
     def _draw_header(self, p, width, height):
         """Dibuja el encabezado principal"""
-        logo_path = 'c:\\.vscode\\APICore\\static\\img\\Logo.png'
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
         p.drawImage(logo_path, 40, height - 60, width=100, height=40, preserveAspectRatio=True, anchor='w')
         p.setFont("Helvetica-Bold", 18)
         p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
