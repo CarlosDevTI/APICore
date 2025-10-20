@@ -1,5 +1,5 @@
 {
-  "name": "Disparador de Plan de Pagos a PDF",
+  "name": "Disparador de Plan de Pagos a PDF (Individual)",
   "nodes": [
     {
       "parameters": {
@@ -13,15 +13,53 @@
         }
       },
       "id": "schedule_trigger",
-      "name": "Trigger Cada Minuto",
+      "name": "1. Trigger Cada Minuto",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [450, 300]
+      "position": [
+        400,
+        300
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "http://127.0.0.1:8000/api/consulta-automatica/",
+        "url": "http://192.168.15.215:8010/api/listar-flujos-pendientes/",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "listar_flujos",
+      "name": "2. Listar Flujos Pendientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "split_in_batches",
+      "name": "3. Procesar Uno por Uno",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://192.168.15.215:8010/api/generar-pdf/{{ $json.K_FLUJO }}/",
         "options": {
           "timeout": 60000,
           "response": {
@@ -31,25 +69,31 @@
           }
         }
       },
-      "id": "consultar_api_pdf",
-      "name": "Llamar a API para generar PDF",
+      "id": "generar_pdf",
+      "name": "4. Generar PDF Individual",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [690, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
-        "fromEmail": "notificaciones@tucooperativa.com",
-        "toEmail": "destinatario@ejemplo.com",
-        "subject": "Planes de Pago Generados - {{ new Date().toISOString() }}",
-        "text": "Se adjunta el PDF con los planes de pago generados automáticamente.",
+        "fromEmail": "actualizaciones@congente.co",
+        "toEmail": "={{ $json.K_EMAIL }}",
+        "subject": "Plan de Pagos - {{ $json.NNASOCIA }}",
+        "text": "Se adjunta el PDF con su plan de pagos.",
         "options": {}
       },
       "id": "enviar_email",
-      "name": "Enviar Email con PDF",
+      "name": "5. Enviar Email Individual",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [930, 300],
+      "position": [
+        1360,
+        300
+      ],
       "credentials": {
         "emailSend": {
           "id": "YOUR_EMAIL_CREDENTIAL_ID",
@@ -59,22 +103,44 @@
     }
   ],
   "connections": {
-    "Trigger Cada Minuto": {
+    "1. Trigger Cada Minuto": {
       "main": [
         [
           {
-            "node": "Llamar a API para generar PDF",
+            "node": "2. Listar Flujos Pendientes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Llamar a API para generar PDF": {
+    "2. Listar Flujos Pendientes": {
       "main": [
         [
           {
-            "node": "Enviar Email con PDF",
+            "node": "3. Procesar Uno por Uno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Procesar Uno por Uno": {
+      "main": [
+        [
+          {
+            "node": "4. Generar PDF Individual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Generar PDF Individual": {
+      "main": [
+        [
+          {
+            "node": "5. Enviar Email Individual",
             "type": "main",
             "index": 0
           }

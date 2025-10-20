@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import ValidarView
+from .views import ListPendingFlowsView, GeneratePdfView
 
 urlpatterns = [
-    path('consulta-automatica/', ValidarView.as_view(), name='consulta-automatica'),
+    path('listar-flujos-pendientes/', ListPendingFlowsView.as_view(), name='listar-flujos-pendientes'),
+    path('generar-pdf/<int:flujo_id>/', GeneratePdfView.as_view(), name='generar-pdf'),
 ]
