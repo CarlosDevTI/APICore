@@ -1,5 +1,5 @@
 {
-  "name": "Disparador de Plan de Pagos a PDF (Individual)",
+  "name": "Plan de Pagos",
   "nodes": [
     {
       "parameters": {
@@ -7,103 +7,107 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "* * * * *"
+              "expression": "*/5 * * * *"
             }
           ]
         }
       },
-      "id": "schedule_trigger",
-      "name": "1. Trigger Cada Minuto",
+      "id": "5ccbb301-9d4c-4f46-bea7-fee7b062859e",
+      "name": "1. Trigger Cada 5 Minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        400,
-        300
+        -96,
+        1088
       ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "http://192.168.15.215:8010/api/listar-flujos-pendientes/",
         "options": {
-          "timeout": 60000,
           "response": {
             "response": {
               "responseFormat": "json"
             }
-          }
+          },
+          "timeout": 60000
         }
       },
-      "id": "listar_flujos",
+      "id": "d69f35d3-9f02-4bc8-a692-4899c2d84ede",
       "name": "2. Listar Flujos Pendientes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        640,
-        300
+        144,
+        1088
       ]
     },
     {
       "parameters": {
-        "batchSize": 1
+        "batchSize": 1,
+        "options": {}
       },
-      "id": "split_in_batches",
+      "id": "d86a1de3-b424-44a3-a184-5ff12fbb1616",
       "name": "3. Procesar Uno por Uno",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
       "position": [
-        880,
-        300
+        384,
+        1088
       ]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=http://192.168.15.215:8010/api/generar-pdf/{{ $json.K_FLUJO }}/",
+        "url": "=http://192.168.15.215:8010/api/generar-pdf/{{ $json.CEDULA }}/",
         "options": {
-          "timeout": 60000,
           "response": {
             "response": {
               "responseFormat": "file"
             }
-          }
+          },
+          "timeout": 120000
         }
       },
-      "id": "generar_pdf",
+      "id": "32627746-297d-4436-9e81-662f28e5f50c",
       "name": "4. Generar PDF Individual",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1120,
-        300
+        624,
+        1088
       ]
     },
     {
       "parameters": {
         "fromEmail": "actualizaciones@congente.co",
-        "toEmail": "={{ $json.K_EMAIL }}",
-        "subject": "Plan de Pagos - {{ $json.NNASOCIA }}",
-        "text": "Se adjunta el PDF con su plan de pagos.",
-        "options": {}
+        "toEmail": "={{ $json.MAIL }}",
+        "subject": "=Plan de Pagos - {{ $json.NOMBRE }}",
+        "html": "=<div style=\"text-align: center; margin-bottom: 20px;\">\n  <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\" \n       alt=\"Cooperativa Congente\" \n       width=\"160\" \n       style=\"border: none;\">\n</div>\n\n<p>Respetad@ señor@ <strong>{{ $json.NOMBRE }}</strong>,</p>\n\n<p>\nLa <strong>Cooperativa de Ahorro y Crédito Congente</strong> se complace en informarle que se ha realizado el desembolso correspondiente a su crédito.\n</p>\n\n<p>\nAdjunto a este mensaje encontrará el documento correspondiente a la formalización de su crédito. Le agradecemos su atención y la confianza depositada en nuestra entidad.\n</p>\n\n<p>\nCordialmente,<br>\n<strong>Cooperativa de Ahorro y Crédito Congente</strong><br>\nÁrea de Crédito\n</p>\n",
+        "options": {
+          "appendAttribution": false,
+          "attachments": "=data"
+        }
       },
-      "id": "enviar_email",
+      "id": "7f91f938-dddc-4455-b359-fa8eb63cbc07",
       "name": "5. Enviar Email Individual",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1360,
-        300
+        864,
+        1088
       ],
+      "webhookId": "1cfa20b7-b554-41e3-b4b6-245478a0509f",
       "credentials": {
-        "emailSend": {
-          "id": "YOUR_EMAIL_CREDENTIAL_ID",
-          "name": "Your Email Account"
+        "smtp": {
+          "id": "8d8v3sSBkfnGcYqs",
+          "name": "SMTP account"
         }
       }
     }
   ],
+  "pinData": {},
   "connections": {
-    "1. Trigger Cada Minuto": {
+    "1. Trigger Cada 5 Minutos": {
       "main": [
         [
           {
@@ -147,5 +151,16 @@
         ]
       ]
     }
-  }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ce7093ce-f936-4234-9522-0932e3cd96f6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cf22348bf442d0414994b184c25893f3f3c0989623f85bd8feb8ed5035be0cc0"
+  },
+  "id": "1Syk592k68zZaAp9",
+  "tags": []
 }
