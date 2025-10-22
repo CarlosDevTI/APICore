@@ -567,7 +567,7 @@ class GenerarPDF(APIView):
     def _draw_page_number(self, p, width, height, page_num, total_pages):
         """Dibuja el número de página"""
         p.setFont("Helvetica", 9.5)
-        p.drawRightString(width - 40, 30, f"Página: {page_num}/{total_pages}")
+        p.drawRightString(width - 40, 30, f"Página: {page_num}")
 
     @swagger_auto_schema(
         operation_description="""Genera un PDF para un único flujo de plan de pagos especificado por su ID.""",
@@ -602,9 +602,10 @@ class GenerarPDF(APIView):
             y_pos = self._draw_client_data(p, width, y_pos, target_flujo)
             y_pos -= 15  # Add vertical space
             y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo)
+            y_pos -= 25  # Added extra space as requested
             y_pos = self._draw_liquidation_detail(p, width, y_pos, target_flujo)
             
-            # --- Payment Plan Pages ---
+            # --- Payment Plan Pages & Footer ---
             plan_pago_data = target_flujo.get('PLAN_PAGO', [])
             rows_per_page = 30  # Estimated rows per page
             num_rows = len(plan_pago_data)
@@ -612,13 +613,12 @@ class GenerarPDF(APIView):
             num_payment_pages = (num_rows + rows_per_page - 1) // rows_per_page
             if num_payment_pages == 0:
                 num_payment_pages = 1
-            
-            total_pages = 1 + num_payment_pages + 1  # Page1 + PaymentPages + SignaturePage
 
-            self._draw_page_number(p, width, height, 1, total_pages)
+            self._draw_page_number(p, width, height, 1)
 
             page_num = 2
             start_row = 0
+            y_pos_after_table = 0
             for i in range(num_payment_pages):
                 p.showPage()
                 self._draw_header(p, width, height)
@@ -626,18 +626,17 @@ class GenerarPDF(APIView):
                 
                 end_row = start_row + rows_per_page
                 
-                self._draw_payment_table(p, width, y_pos_page, target_flujo, start_row, end_row)
+                y_pos_after_table = self._draw_payment_table(p, width, y_pos_page, target_flujo, start_row, end_row)
                 
-                self._draw_page_number(p, width, height, page_num, total_pages)
+                self._draw_page_number(p, width, height, page_num)
                 
                 start_row = end_row
                 page_num += 1
 
-            # --- Signature Page ---
-            p.showPage()
-            self._draw_header(p, width, height)
-            self._draw_footer(p, width, height - 80)
-            self._draw_page_number(p, width, height, page_num, total_pages)
+            # --- Signature Section ---
+            # Draw footer on the same page as the last table, with a separator.
+            # The _draw_footer function will handle creating a new page if needed.
+            self._draw_footer(p, width, y_pos_after_table - 25)
             
             p.save()
             buffer.seek(0)
