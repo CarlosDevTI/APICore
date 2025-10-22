@@ -147,69 +147,70 @@ class GenerarPDF(APIView):
         p.drawString(50, y_start + 5, "Datos del cliente")
         
         y = y_start - 20
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         
         # Primera fila
         p.drawString(50, y, "Identificación:")
-        p.setFont("Helvetica", 8)
+        p.setFont("Helvetica", 10)
         p.drawString(125, y, flujo_data.get('CEDULA', ''))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Fecha de expedición")
-        p.drawString(220, y - 10, "identificación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y - 5, flujo_data.get('FECHA_EXPEDICION', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Fecha de expedición")
+        p.drawString(310, y - 10, "identificación:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y - 5, flujo_data.get('FECHA_EXPEDICION', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(390, y, "Lugar expedición")
-        p.drawString(390, y - 10, "identificación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(470, y - 5, flujo_data.get('LUGAR_EXPEDICION', 'N/A'))
-        
-        # Segunda fila
+        #! 90 de diferencia
+        #! Segunda fila
         y -= 25
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(50, y, "Nombre:")
-        p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('NOMBRE', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(50, y, "Lugar expedición")
+        p.drawString(50, y - 10, "identificación:")
+        p.setFont("Helvetica", 10)
+        p.drawString(125, y - 5, flujo_data.get('LUGAR_EXPEDICION', 'N/A'))
         
-        # Tercera fila
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Nombre:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('NOMBRE', ''))
+        
+        #! Tercera fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Código:")
-        p.setFont("Helvetica", 8)
+        p.setFont("Helvetica", 10)
         p.drawString(125, y, flujo_data.get('CODIGO', ''))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Dirección:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('DIRECCION', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Dirección:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('DIRECCION', ''))
         
-        # Cuarta fila
+        #! Cuarta fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Ciudad:")
-        p.setFont("Helvetica", 8)
+        p.setFont("Helvetica", 10)
         p.drawString(125, y, flujo_data.get('CIUDAD', ''))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Departamento:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('DEPARTAMENTO', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Departamento:")
+        p.setFont("Helvetica", 10)
+        p.drawString(100, y, flujo_data.get('DEPARTAMENTO', ''))
         
         # Quinta fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold",10)
         p.drawString(50, y, "Dependencia:")
-        p.setFont("Helvetica", 8)
+        p.setFont("Helvetica", 10)
         p.drawString(125, y, flujo_data.get('DEPENDENCIA', ''))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Ubicación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('UBICACION', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Ubicación:")
+        p.setFont("Helvetica", 10)
+        p.drawString(100, y, flujo_data.get('UBICACION', ''))
         
-        return y - 25
+        return y - 30
 
     def _draw_obligation_data(self, p, width, y_start, flujo_data):
         """Dibuja la sección de datos de la obligación"""
@@ -220,168 +221,166 @@ class GenerarPDF(APIView):
         p.drawString(50, y_start + 5, "Datos de la obligación")
         
         y = y_start - 20
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         
-        # Primera fila
+        #!Primera fila
         p.drawString(50, y, "Solicitud:")
-        p.setFont("Helvetica", 8)
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('SOLICITUD', 'N/A'))
+
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Obligación:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('OBLIGACION', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Obligación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('OBLIGACION', 'N/A'))
-        
-        # Segunda fila
+        #! Segunda fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Número del pagaré:")
-        p.setFont("Helvetica", 8)
-        p.drawString(145, y, flujo_data.get('NUM_PAGARE', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('NUM_PAGARE', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Modalidad:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('MODALIDAD', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Modalidad:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('MODALIDAD', ''))
         
-        # Tercera fila
+        #! Tercera fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Destinación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('DESTINACION', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('DESTINACION', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Medio de pago:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('MEDIO_PAGO', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Medio de pago:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('MEDIO_PAGO', ''))
         
-        # Cuarta fila
+        #! Cuarta fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Linea:")
-        p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('LINEA', ''))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('LINEA', '#N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Fecha de solicitud:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('FECHA_SOLICITUD', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Fecha de solicitud:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('FECHA_SOLICITUD', 'N/A'))
         
-        # Quinta fila - Fechas
+        #! Quinta fila - Fechas
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Fecha de aprobación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(145, y, flujo_data.get('FECHA_APROBACION', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('FECHA_APROBACION', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Fecha de desembolso:")
-        p.setFont("Helvetica", 8)
-        p.drawString(330, y, flujo_data.get('FECHA_DESEMBOLSO', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Fecha de desembolso:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('FECHA_DESEMBOLSO', 'N/A'))
         
-        # Sexta fila - Tasas
+        #! Sexta fila - Tasas
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "T.E.A:")
-        p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('TEA', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('TEA', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "T.N.A.M.V:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('TNAMV', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "T.N.A.M.V:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('TNAMV', 'N/A'))
         
-        # Séptima fila
+        #! Séptima fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Tasa Periódica:")
-        p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('TASA_PERIODICA', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('TASA_PERIODICA', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Tasa de usura:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('TASA_USURA', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Tasa de usura:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('TASA_USURA', 'N/A'))
         
-        # Octava fila
+        #! Octava fila
         y -= 15
         p.setFont("Helvetica-Bold", 8)
         p.drawString(50, y, "Otros conceptos:")
         p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('OTROS_CONCEPTOS_INFO', 'N/A'))
+        p.drawString(135, y, flujo_data.get('OTROS_CONCEPTOS_INFO', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Seg. Vida:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('SEG_VIDA_PERCENT', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Tipo de tasa:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('TIPO_TASA', 'Fija'))
+
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(400, y, "Tipo de tasa:")
-        p.setFont("Helvetica", 8)
-        p.drawString(470, y, flujo_data.get('TIPO_TASA', 'Fija'))
+        #! Novena fila
+        y -= 15        
         
-        # Novena fila
-        y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Factor de variabilidad:")
-        p.setFont("Helvetica", 8)
-        p.drawString(155, y, flujo_data.get('FACTOR_VARIABILIDAD', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('FACTOR_VARIABILIDAD', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Forma de pago:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('FORMA_PAGO', ''))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Forma de pago:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('FORMA_PAGO', ''))
         
-        # Décima fila
+        #! Décima fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Fecha primera cuota:")
-        p.setFont("Helvetica", 8)
-        p.drawString(145, y, flujo_data.get('FECHA_PRIMERA_CUOTA', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('FECHA_PRIMERA_CUOTA', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Fecha última cuota:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('FECHA_ULTIMA_CUOTA', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Fecha última cuota:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('FECHA_ULTIMA_CUOTA', 'N/A'))
         
-        # Onceava fila
+        #! Onceava fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Número de cuotas:")
-        p.setFont("Helvetica", 8)
-        p.drawString(145, y, str(flujo_data.get('NUM_CUOTAS', 'N/A')))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, str(flujo_data.get('NUM_CUOTAS', 'N/A')))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Valor de la cuota:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('VALOR_CUOTA', 'N/A'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Valor de la cuota:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('VALORCUOTA', 'N/A'))
         
-        # Doceava fila
+        #! Doceava fila
         y -= 15
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Día de vencimiento de la")
         p.drawString(50, y - 10, "cuota:")
-        p.setFont("Helvetica", 8)
-        p.drawString(145, y - 5, str(flujo_data.get('DIA_VENCIMIENTO', 'N/A')))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y - 5, str(flujo_data.get('DIA_VENCIMIENTO', 'N/A')))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Periodicidad de pago:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('PERIODICIDAD', 'Mensual'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Periodicidad de pago:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('PERIODICIDAD', 'Mensual'))
         
         # Treceava fila
         y -= 20
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Garantía:")
-        p.setFont("Helvetica", 8)
-        p.drawString(125, y, flujo_data.get('GARANTIA', 'N/A'))
+        p.setFont("Helvetica", 10)
+        p.drawString(135, y, flujo_data.get('GARANTIA', 'N/A'))
         
-        p.setFont("Helvetica-Bold", 8)
-        p.drawString(220, y, "Clasificación:")
-        p.setFont("Helvetica", 8)
-        p.drawString(310, y, flujo_data.get('CLASIFICACION', 'Consumo'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(310, y, "Clasificación:")
+        p.setFont("Helvetica", 10)
+        p.drawString(400, y, flujo_data.get('CLASIFICACION', 'Consumo'))
         
-        return y - 25
+        return y - 30
 
     def _draw_liquidation_detail(self, p, width, y_start, flujo_data):
         """Dibuja la tabla de detalle de liquidación"""
@@ -392,10 +391,10 @@ class GenerarPDF(APIView):
         p.drawString(50, y_start + 5, "Detalle de liquidación")
         
         liquidacion_data = [
-            {'concepto': 'Monto', 'obligacion': flujo_data.get('MONTO', '0'), 'debito': '0', 'credito': ''},
-            {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('INT_ANTICIPADOS', '0')},
-            {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': flujo_data.get('OBLIG_RECOGE', ''), 'debito': '0', 'credito': flujo_data.get('OBLIG_RECOGE_VALOR', '0')},
-            {'concepto': 'Neto a Girar', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('NETO_GIRAR', '0')}
+            {'concepto': 'Monto', 'obligacion': flujo_data.get('MONTO', '0'), 'debito': '0', 'credito': '0'},
+            {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': '0', 'debito': '0', 'credito': flujo_data.get('INT_ANTICIPADOS', '0')},
+            {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': flujo_data.get('OBLIG_RECOGE', '0'), 'debito': '0', 'credito': flujo_data.get('OBLIG_RECOGE_VALOR', '0')},
+            {'concepto': 'Neto a Girar', 'obligacion': '0', 'debito': '0', 'credito': flujo_data.get('NETO_GIRAR', '0')}
         ]
         
         table_data = [['Concepto', 'Obligación', 'Débito', 'Crédito']]
@@ -437,11 +436,12 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 18, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 5, "Ciclo de pago")
+        p.drawString(50, y_start , "Ciclo de pago")
+        print("y_start en payment table:", y_start)
         
         plan_pago_data = flujo_data.get('PLAN_PAGO', [])
         if not plan_pago_data:
-            p.setFont("Helvetica", 8)
+            p.setFont("Helvetica", 10)
             p.drawString(50, y_start - 20, "No hay datos del plan de pago disponibles.")
             return y_start - 40
         
@@ -455,13 +455,13 @@ class GenerarPDF(APIView):
         for row in plan_pago_data:
             table_data.append([str(row.get(col, '')) for col in col_names])
         
-        # Calcular totales
+        #! Calcular totales
         if len(table_data) > 1:
             totales = ['Totales', '']
             for col in col_names[2:]:
                 total = sum(float(str(row.get(col, 0)).replace(',', '')) for row in plan_pago_data if row.get(col))
                 totales.append(f"{total:,.0f}")
-            totales[-1] = ''  # El saldo final no se suma
+            totales[-1] = ''  #! El saldo final no se suma
             table_data.append(totales)
         
         col_widths = [30, 65, 60, 60, 50, 50, 65, 60, 60]
@@ -483,7 +483,7 @@ class GenerarPDF(APIView):
             ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
         ]
         
-        # Resaltar fila de totales
+        #! Resaltar fila de totales
         if len(table_data) > 2:
             style_commands.extend([
                 ('BACKGROUND', (0, -1), (-1, -1), HexColor('#f0f0f0')),
@@ -511,7 +511,7 @@ class GenerarPDF(APIView):
         p.drawString(50, y_position + 5, "Firmas")
         
         y = y_position - 30
-        p.setFont("Helvetica-Bold", 8)
+        p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Nombre del deudor")
         p.drawString(300, y, "Firma")
         
@@ -520,7 +520,7 @@ class GenerarPDF(APIView):
 
     def _draw_page_number(self, p, width, height, page_num, total_pages):
         """Dibuja el número de página"""
-        p.setFont("Helvetica", 8)
+        p.setFont("Helvetica", 9)
         p.drawRightString(width - 40, 30, f"Página: {page_num}/{total_pages}")
 
     @swagger_auto_schema(
@@ -538,7 +538,7 @@ class GenerarPDF(APIView):
     )
     def get(self, request, cedula):
         try:
-            cedula = int(cedula)  # Convertir a int para comparar con Oracle
+            cedula = int(cedula)  #! Convertir a int para comparar con Oracle
         except ValueError:
             return JsonResponse({"error": "Cédula inválida"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -554,7 +554,7 @@ class GenerarPDF(APIView):
             p = canvas.Canvas(buffer, pagesize=letter)
             width, height = letter
             
-            # Primera página
+            #! Primera página
             self._draw_header(p, width, height)
             
             y_pos = height - 80
@@ -564,14 +564,14 @@ class GenerarPDF(APIView):
             
             self._draw_page_number(p, width, height, 1, 3)
             
-            # Segunda página - Ciclo de pago
+            #! Segunda página - Ciclo de pago
             p.showPage()
             self._draw_header(p, width, height)
             y_pos = height - 80
             y_pos = self._draw_payment_table(p, width, y_pos, target_flujo)
             self._draw_page_number(p, width, height, 2, 3)
             
-            # Tercera página - Firmas
+            #! Tercera página - Firmas
             p.showPage()
             self._draw_header(p, width, height)
             self._draw_footer(p, width, height - 80)
