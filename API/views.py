@@ -28,7 +28,7 @@ def _get_oracle_connection():
 def _filtrar_flujos():
     """
     Llamar al procedimiento almacenado SP_PLANPAGOS y retornar todos los flujos
-    agrupados por K_FLUJO.
+    agrupados por CEDULA.
     """
     now = datetime.now()
     fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
@@ -46,42 +46,55 @@ def _filtrar_flujos():
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
             
-            # Asegurar que MAIL esté seleccionado y manejado, por defecto a un marcador de posición si no está presente
             for row in all_rows:
                 if 'MAIL' not in row:
                     row['MAIL'] = 'no-email@example.com'
 
-            # Agrupar los datos por K_FLUJO
-            grouped_data = groupby(sorted(all_rows, key=itemgetter('K_FLUJO')), key=itemgetter('K_FLUJO'))
-
             data = []
-            for k_flujo, group in grouped_data:
-                flujo_rows = list(group)
-                first_row = flujo_rows[0]
-                flujo_dict = {
-                    'K_FLUJO': k_flujo,
-                    'N_PARAME': first_row.get('N_PARAME'),
-                    'NNASOCIA': first_row.get('NNASOCIA'),
-                    'MAIL': first_row.get('MAIL'),
-                    'PLAN_PAGO': [
-                        {col: row.get(col) for col in cols} for row in flujo_rows
-                    ]
-                }
-                data.append(flujo_dict)
+            for row in all_rows:
+                plan_pago = []
+                # Separar los valores de las columnas por punto y coma
+                nos = str(row.get('NO', '')).split(';')
+                fechas = str(row.get('FECHA', '')).split(';')
+                abonos_capital = str(row.get('ABONO_CAPITAL', '')).split(';')
+                abonos_interes = str(row.get('ABONO_INTERES', '')).split(';')
+                seguros_vida = str(row.get('SEGURO_VIDA', '')).split(';')
+                otros_conceptos = str(row.get('OTROS_CONCEPTOS', '')).split(';')
+                capitalizaciones = str(row.get('CAPITALIZACION', '')).split(';')
+                valores_cuota = str(row.get('VALOR_CUOTA', '')).split(';')
+                saldos_parcial = str(row.get('SALDO_PARCIAL', '')).split(';')
+
+                num_cuotas = len(nos)
+                for i in range(num_cuotas):
+                    plan_pago.append({
+                        'CUOTA': nos[i] if i < len(nos) else '',
+                        'FECHA': fechas[i] if i < len(fechas) else '',
+                        'ABONO_CAPITAL': abonos_capital[i] if i < len(abonos_capital) else '',
+                        'ABONO_INTERES': abonos_interes[i] if i < len(abonos_interes) else '',
+                        'SEGURO_VIDA': seguros_vida[i] if i < len(seguros_vida) else '',
+                        'OTROS_CONCEPTOS': otros_conceptos[i] if i < len(otros_conceptos) else '',
+                        'CAPITALIZACION': capitalizaciones[i] if i < len(capitalizaciones) else '',
+                        'VALOR_CUOTA': valores_cuota[i] if i < len(valores_cuota) else '',
+                        'SALDO_PARCIAL': saldos_parcial[i] if i < len(saldos_parcial) else '',
+                    })
+                
+                row['PLAN_PAGO'] = plan_pago
+                data.append(row)
             return data
 
 class ListarFlujosPendientes(APIView):
     @swagger_auto_schema(
         operation_description="""Consulta la base de datos y devuelve una lista JSON de los flujos de planes de pago pendientes.""",
-        responses={
+        responses=    {
             200: openapi.Response('Lista de flujos pendientes.', schema=openapi.Schema(
                 type=openapi.TYPE_ARRAY,
                 items=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'K_FLUJO': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'CEDULA': openapi.Schema(type=openapi.TYPE_STRING),
+                        'NOMBRE': openapi.Schema(type=openapi.TYPE_STRING),
+                        'K_NUMDOC': openapi.Schema(type=openapi.TYPE_INTEGER),
                         'MAIL': openapi.Schema(type=openapi.TYPE_STRING),
-                        'NNASOCIA': openapi.Schema(type=openapi.TYPE_STRING),
                     }
                 )
             )),
@@ -91,12 +104,12 @@ class ListarFlujosPendientes(APIView):
     def get(self, request):
         try:
             all_flows = _filtrar_flujos()
-            # Retornar una lista simplificada para que n8n pueda iterar
             summary_list = [
                 {
-                    "K_FLUJO": flow.get("K_FLUJO"),
+                    "CEDULA": flow.get("CEDULA"),
+                    "NOMBRE": flow.get("NOMBRE"),
+                    "K_NUMDOC": flow.get("K_NUMDOC"),
                     "MAIL": flow.get("MAIL"),
-                    "NNASOCIA": flow.get("NNASOCIA")
                 }
                 for flow in all_flows
             ]
@@ -108,19 +121,6 @@ class ListarFlujosPendientes(APIView):
 #? GENERAR PDF PARA UN ÚNICO FLUJO
 class GenerarPDF(APIView):
 
-    def _parse_n_parame(self, n_parame_str):
-        parts = [p.strip() for p in n_parame_str.split('-')]
-        parsed_data = {
-            'identificacion': parts[0] if len(parts) > 0 else '',
-            'nombre': parts[1] if len(parts) > 1 else '',
-            'modalidad': parts[2] if len(parts) > 2 else '',
-            'linea': parts[4] if len(parts) > 4 else '',
-            'monto': parts[6] if len(parts) > 6 else '0.00',
-            'forma_pago': parts[12] if len(parts) > 12 else '',
-            'medio_pago': parts[16] if len(parts) > 16 else ''
-        }
-        return parsed_data
-
     def _draw_header(self, p, width, height):
         """Dibuja el encabezado principal"""
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
@@ -128,7 +128,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 18)
         p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
         
-    def _draw_client_data(self, p, width, y_start, flujo_data, parame_data):
+    def _draw_client_data(self, p, width, y_start, flujo_data):
         """Dibuja la sección de datos del cliente"""
         p.setFillColor(HexColor('#d9d9d9'))
         p.rect(40, y_start, width - 80, 18, fill=1, stroke=0)
@@ -142,7 +142,7 @@ class GenerarPDF(APIView):
         # Primera fila
         p.drawString(50, y, "Identificación:")
         p.setFont("Helvetica", 8)
-        p.drawString(125, y, parame_data.get('identificacion', ''))
+        p.drawString(125, y, flujo_data.get('CEDULA', ''))
         
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Fecha de expedición")
@@ -161,7 +161,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 8)
         p.drawString(50, y, "Nombre:")
         p.setFont("Helvetica", 8)
-        p.drawString(125, y, parame_data.get('nombre', ''))
+        p.drawString(125, y, flujo_data.get('NOMBRE', ''))
         
         # Tercera fila
         y -= 15
@@ -201,7 +201,7 @@ class GenerarPDF(APIView):
         
         return y - 25
 
-    def _draw_obligation_data(self, p, width, y_start, flujo_data, parame_data):
+    def _draw_obligation_data(self, p, width, y_start, flujo_data):
         """Dibuja la sección de datos de la obligación"""
         p.setFillColor(HexColor('#d9d9d9'))
         p.rect(40, y_start, width - 80, 18, fill=1, stroke=0)
@@ -215,7 +215,7 @@ class GenerarPDF(APIView):
         # Primera fila
         p.drawString(50, y, "Solicitud:")
         p.setFont("Helvetica", 8)
-        p.drawString(125, y, str(flujo_data.get('K_FLUJO', '')))
+        p.drawString(125, y, str(flujo_data.get('K_NUMDOC', '')))
         
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Obligación:")
@@ -232,7 +232,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Modalidad:")
         p.setFont("Helvetica", 8)
-        p.drawString(310, y, parame_data.get('modalidad', ''))
+        p.drawString(310, y, flujo_data.get('MODALIDAD', ''))
         
         # Tercera fila
         y -= 15
@@ -244,14 +244,14 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Medio de pago:")
         p.setFont("Helvetica", 8)
-        p.drawString(310, y, parame_data.get('medio_pago', ''))
+        p.drawString(310, y, flujo_data.get('MEDIO_PAGO', ''))
         
         # Cuarta fila
         y -= 15
         p.setFont("Helvetica-Bold", 8)
         p.drawString(50, y, "Linea:")
         p.setFont("Helvetica", 8)
-        p.drawString(125, y, parame_data.get('linea', ''))
+        p.drawString(125, y, flujo_data.get('LINEA', ''))
         
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Fecha de solicitud:")
@@ -321,7 +321,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Forma de pago:")
         p.setFont("Helvetica", 8)
-        p.drawString(310, y, parame_data.get('forma_pago', ''))
+        p.drawString(310, y, flujo_data.get('FORMA_PAGO', ''))
         
         # Décima fila
         y -= 15
@@ -374,7 +374,7 @@ class GenerarPDF(APIView):
         
         return y - 25
 
-    def _draw_liquidation_detail(self, p, width, y_start, flujo_data, parame_data):
+    def _draw_liquidation_detail(self, p, width, y_start, flujo_data):
         """Dibuja la tabla de detalle de liquidación"""
         p.setFillColor(HexColor('#d9d9d9'))
         p.rect(40, y_start, width - 80, 18, fill=1, stroke=0)
@@ -382,16 +382,12 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 5, "Detalle de liquidación")
         
-        liquidacion_data = flujo_data.get('DETALLE_LIQUIDACION', [])
-        
-        if not liquidacion_data:
-            # Datos por defecto basados en el ejemplo
-            liquidacion_data = [
-                {'concepto': 'Monto', 'obligacion': parame_data.get('monto', '0'), 'debito': '0', 'credito': ''},
-                {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('INT_ANTICIPADOS', '0')},
-                {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': flujo_data.get('OBLIG_RECOGE', ''), 'debito': '0', 'credito': flujo_data.get('OBLIG_RECOGE_VALOR', '0')},
-                {'concepto': 'Neto a Girar', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('NETO_GIRAR', '0')}
-            ]
+        liquidacion_data = [
+            {'concepto': 'Monto', 'obligacion': flujo_data.get('MONTO', '0'), 'debito': '0', 'credito': ''},
+            {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('INT_ANTICIPADOS', '0')},
+            {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': flujo_data.get('OBLIG_RECOGE', ''), 'debito': '0', 'credito': flujo_data.get('OBLIG_RECOGE_VALOR', '0')},
+            {'concepto': 'Neto a Girar', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('NETO_GIRAR', '0')}
+        ]
         
         table_data = [['Concepto', 'Obligación', 'Débito', 'Crédito']]
         
@@ -521,23 +517,23 @@ class GenerarPDF(APIView):
     @swagger_auto_schema(
         operation_description="""Genera un PDF para un único flujo de plan de pagos especificado por su ID.""",
         manual_parameters=[
-            openapi.Parameter('flujo_id', openapi.IN_PATH, description="ID del flujo a generar.", 
-                            type=openapi.TYPE_INTEGER, required=True)
+            openapi.Parameter('cedula', openapi.IN_PATH, description="Cédula del cliente a generar.", 
+                            type=openapi.TYPE_STRING, required=True)
         ],
-        responses={
+        responses=    {
             200: openapi.Response('PDF del plan de pagos generado exitosamente.', 
                                 schema=openapi.Schema(type=openapi.TYPE_FILE)),
             404: 'Flujo no encontrado.',
             500: 'Error en la consulta a la base de datos o en la generación del PDF.'
         }
     )
-    def get(self, request, flujo_id):
+    def get(self, request, cedula):
         try:
             all_flows = _filtrar_flujos()
             
             target_flujo = None
             for flow in all_flows:
-                if flow.get('K_FLUJO') == flujo_id:
+                if flow.get('CEDULA') == cedula:
                     target_flujo = flow
                     break
             
@@ -548,15 +544,13 @@ class GenerarPDF(APIView):
             p = canvas.Canvas(buffer, pagesize=letter)
             width, height = letter
             
-            parame_data = self._parse_n_parame(target_flujo.get('N_PARAME', ''))
-            
             # Primera página
             self._draw_header(p, width, height)
             
             y_pos = height - 80
-            y_pos = self._draw_client_data(p, width, y_pos, target_flujo, parame_data)
-            y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo, parame_data)
-            y_pos = self._draw_liquidation_detail(p, width, y_pos, target_flujo, parame_data)
+            y_pos = self._draw_client_data(p, width, y_pos, target_flujo)
+            y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo)
+            y_pos = self._draw_liquidation_detail(p, width, y_pos, target_flujo)
             
             self._draw_page_number(p, width, height, 1, 3)
             
@@ -577,9 +571,9 @@ class GenerarPDF(APIView):
             buffer.seek(0)
 
             response = HttpResponse(buffer, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="plan_pago_{flujo_id}_{datetime.now().strftime("%Y%m%d")}.pdf"'
+            response['Content-Disposition'] = f'attachment; filename="plan_pago_{cedula}_{datetime.now().strftime("%Y%m%d")}.pdf"'
             return response
 
         except Exception as e:
-            logger.error(f"Error en GenerarPDF para flujo_id {flujo_id}: {e}", exc_info=True)
+            logger.error(f"Error en GenerarPDF para cedula {cedula}: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
