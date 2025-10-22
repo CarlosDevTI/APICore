@@ -46,9 +46,9 @@ def _filtrar_flujos(cedula=None):
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
             
-            # Filtrar por cédula si se proporciona
+            # Filtrar por cédula si se proporciona, comparando como strings para evitar errores de tipo.
             if cedula:
-                all_rows = [row for row in all_rows if row.get('CEDULA') == cedula]
+                all_rows = [row for row in all_rows if str(row.get('CEDULA', '')) == str(cedula)]
 
             if not all_rows:
                 return []
