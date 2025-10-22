@@ -93,7 +93,6 @@ class ListarFlujosPendientes(APIView):
                     properties={
                         'CEDULA': openapi.Schema(type=openapi.TYPE_STRING),
                         'NOMBRE': openapi.Schema(type=openapi.TYPE_STRING),
-                        'K_NUMDOC': openapi.Schema(type=openapi.TYPE_INTEGER),
                         'MAIL': openapi.Schema(type=openapi.TYPE_STRING),
                     }
                 )
@@ -108,7 +107,6 @@ class ListarFlujosPendientes(APIView):
                 {
                     "CEDULA": flow.get("CEDULA"),
                     "NOMBRE": flow.get("NOMBRE"),
-                    "K_NUMDOC": flow.get("K_NUMDOC"),
                     "MAIL": flow.get("MAIL"),
                 }
                 for flow in all_flows
@@ -215,7 +213,6 @@ class GenerarPDF(APIView):
         # Primera fila
         p.drawString(50, y, "Solicitud:")
         p.setFont("Helvetica", 8)
-        p.drawString(125, y, str(flujo_data.get('K_NUMDOC', '')))
         
         p.setFont("Helvetica-Bold", 8)
         p.drawString(220, y, "Obligación:")
