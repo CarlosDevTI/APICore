@@ -137,7 +137,7 @@ class GenerarPDF(APIView):
         p.drawImage(logo_path, 40, height - 50, width=120, height=50, preserveAspectRatio=True, anchor='w', mask='auto')
         p.setFont("Helvetica-Bold", 18)
         p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
-        
+
     def _draw_client_data(self, p, width, y_start, flujo_data):
         """Dibuja la sección de datos del cliente con espaciado y fuentes mejoradas."""
         p.setFillColor(HexColor('#d9d9d9'))
@@ -152,7 +152,7 @@ class GenerarPDF(APIView):
         col_1_value = 160
         col_2_label = 320
         col_2_value = 430
-
+        
         # Fila 1
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(col_1_label, y, "Identificación:")
@@ -199,6 +199,8 @@ class GenerarPDF(APIView):
         p.drawString(col_2_label, y, "Departamento:")
         p.setFont("Helvetica", 9.5)
         p.drawString(col_2_value, y, flujo_data.get('DEPARTAMENTO', ''))
+
+        y -= 10  # Add vertical space
 
         # Fila 5
         y -= line_height
@@ -435,8 +437,8 @@ class GenerarPDF(APIView):
         
         return y_pos - h - 20
 
-    def _draw_payment_table(self, p, width, y_start, flujo_data):
-        """Dibuja la tabla del ciclo de pago con posicionamiento corregido."""
+    def _draw_payment_table(self, p, width, y_start, flujo_data, start_row=0, end_row=None):
+        """Dibuja la tabla del ciclo de pago con posicionamiento corregido y paginación."""
         p.setFillColor(HexColor('#d9d9d9'))
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
@@ -450,7 +452,12 @@ class GenerarPDF(APIView):
             p.setFont("Helvetica", 9.5)
             p.drawString(50, y_pos - 15, "No hay datos del plan de pago disponibles.")
             return y_pos - 30
+
+        if end_row is None:
+            end_row = len(plan_pago_data)
         
+        data_slice = plan_pago_data[start_row:end_row]
+
         headers = ["No.", "Fecha", "Abono\nCapital", "Abono\nInterés", "Seguro de\nvida", 
                    "Otros\nconceptos", "Capitalización", "Valor Cuota", "Saldo\nparcial"]
         col_names = ['CUOTA', 'FECHA', 'ABONO_CAPITAL', 'ABONO_INTERES', 'SEGURO_VIDA', 
@@ -458,10 +465,11 @@ class GenerarPDF(APIView):
         
         table_data = [headers]
         
-        for row in plan_pago_data:
+        for row in data_slice:
             table_data.append([str(row.get(col, '')) for col in col_names])
         
-        if len(table_data) > 1:
+        is_last_slice = (end_row >= len(plan_pago_data))
+        if is_last_slice and len(plan_pago_data) > 0:
             totales = ['Totales', '']
             for col_idx, col_name in enumerate(col_names):
                 if col_idx > 1:
@@ -492,7 +500,7 @@ class GenerarPDF(APIView):
             ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
         ]
         
-        if len(table_data) > 2:
+        if is_last_slice and len(plan_pago_data) > 0:
             style_commands.extend([
                 ('BACKGROUND', (0, -1), (-1, -1), HexColor('#f0f0f0')),
                 ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
@@ -556,28 +564,49 @@ class GenerarPDF(APIView):
             p = canvas.Canvas(buffer, pagesize=letter)
             width, height = letter
             
-            # Primera página
+            # --- Page 1 ---
             self._draw_header(p, width, height)
             
             y_pos = height - 80
             y_pos = self._draw_client_data(p, width, y_pos, target_flujo)
+            y_pos -= 15  # Add vertical space
             y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo)
             y_pos = self._draw_liquidation_detail(p, width, y_pos, target_flujo)
             
-            self._draw_page_number(p, width, height, 1, 3) #! Ojo, el total de paginas puede cambiar
+            # --- Payment Plan Pages ---
+            plan_pago_data = target_flujo.get('PLAN_PAGO', [])
+            rows_per_page = 30  # Estimated rows per page
+            num_rows = len(plan_pago_data)
             
-            # Segunda página - Ciclo de pago
-            p.showPage()
-            self._draw_header(p, width, height)
-            y_pos = height - 80
-            y_pos = self._draw_payment_table(p, width, y_pos, target_flujo)
-            self._draw_page_number(p, width, height, 2, 3)
+            num_payment_pages = (num_rows + rows_per_page - 1) // rows_per_page
+            if num_payment_pages == 0:
+                num_payment_pages = 1
             
-            # Tercera página - Firmas
+            total_pages = 1 + num_payment_pages + 1  # Page1 + PaymentPages + SignaturePage
+
+            self._draw_page_number(p, width, height, 1, total_pages)
+
+            page_num = 2
+            start_row = 0
+            for i in range(num_payment_pages):
+                p.showPage()
+                self._draw_header(p, width, height)
+                y_pos_page = height - 80
+                
+                end_row = start_row + rows_per_page
+                
+                self._draw_payment_table(p, width, y_pos_page, target_flujo, start_row, end_row)
+                
+                self._draw_page_number(p, width, height, page_num, total_pages)
+                
+                start_row = end_row
+                page_num += 1
+
+            # --- Signature Page ---
             p.showPage()
             self._draw_header(p, width, height)
             self._draw_footer(p, width, height - 80)
-            self._draw_page_number(p, width, height, 3, 3)
+            self._draw_page_number(p, width, height, page_num, total_pages)
             
             p.save()
             buffer.seek(0)
