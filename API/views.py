@@ -492,7 +492,7 @@ class GenerarPDF(APIView):
         for row in data_slice:
             formatted_row = []
             for idx, col_name in enumerate(col_names):
-                value = row.get(col, '')
+                value = row.get(col_name, '')
                 if idx > 1:  # Formatear columnas numéricas
                     formatted_row.append(self._format_colombian(value))
                 else:
