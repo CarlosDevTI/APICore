@@ -45,6 +45,7 @@ def _filtrar_flujos():
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
+            print(all_rows)
             
             for row in all_rows:
                 if 'MAIL' not in row:
