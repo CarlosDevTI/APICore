@@ -25,10 +25,10 @@ def _get_oracle_connection():
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
 
-def _filtrar_flujos():
+def _filtrar_flujos(cedula=None):
     """
-    Llamar al procedimiento almacenado SP_PLANPAGOS y retornar todos los flujos
-    agrupados por CEDULA.
+    Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
+    Si se proporciona una cédula, filtra los resultados para esa cédula.
     """
     now = datetime.now()
     fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
@@ -45,10 +45,16 @@ def _filtrar_flujos():
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
-            print(all_rows)
+            
+            # Filtrar por cédula si se proporciona
+            if cedula:
+                all_rows = [row for row in all_rows if row.get('CEDULA') == cedula]
+
+            if not all_rows:
+                return []
             
             for row in all_rows:
-                if 'MAIL' not in row:
+                if 'MAIL' not in row or not row['MAIL']:
                     row['MAIL'] = 'no-email@example.com'
 
             data = []
@@ -527,16 +533,12 @@ class GenerarPDF(APIView):
     )
     def get(self, request, cedula):
         try:
-            all_flows = _filtrar_flujos()
+            flujos_filtrados = _filtrar_flujos(cedula=cedula)
             
-            target_flujo = None
-            for flow in all_flows:
-                if flow.get('CEDULA') == cedula:
-                    target_flujo = flow
-                    break
-            
-            if not target_flujo:
-                return JsonResponse({"error": "Flujo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            if not flujos_filtrados:
+                return JsonResponse({"error": "Flujo no encontrado para la cédula proporcionada"}, status=status.HTTP_404_NOT_FOUND)
+
+            target_flujo = flujos_filtrados[0]
 
             buffer = io.BytesIO()
             p = canvas.Canvas(buffer, pagesize=letter)
