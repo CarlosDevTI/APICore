@@ -9,11 +9,12 @@ import os
 from django.conf import settings
 import oracledb
 import io
-from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.colors import HexColor
+from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
 from itertools import groupby
 from operator import itemgetter
 
@@ -46,7 +47,6 @@ def _filtrar_flujos(cedula=None):
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
             
-            # Filtrar por cédula si se proporciona, comparando como strings para evitar errores de tipo.
             if cedula:
                 all_rows = [row for row in all_rows if str(row.get('CEDULA', '')) == str(cedula)]
 
@@ -60,7 +60,6 @@ def _filtrar_flujos(cedula=None):
             data = []
             for row in all_rows:
                 plan_pago = []
-                # Separar los valores de las columnas por punto y coma
                 nos = str(row.get('NO', '')).split(';')
                 fechas = str(row.get('FECHA', '')).split(';')
                 abonos_capital = str(row.get('ABONO_CAPITAL', '')).split(';')
@@ -92,7 +91,7 @@ def _filtrar_flujos(cedula=None):
 class ListarFlujosPendientes(APIView):
     @swagger_auto_schema(
         operation_description="""Consulta la base de datos y devuelve una lista JSON de los flujos de planes de pago pendientes.""",
-        responses=    {
+        responses={
             200: openapi.Response('Lista de flujos pendientes.', schema=openapi.Schema(
                 type=openapi.TYPE_ARRAY,
                 items=openapi.Schema(
@@ -110,17 +109,9 @@ class ListarFlujosPendientes(APIView):
     def get(self, request):
         try:
             all_flows = _filtrar_flujos()
-            #! Filtrar solo los que tengan email válido
-            all_flows = [
-                flow for flow in all_flows 
-                if flow.get("MAIL") and flow.get("MAIL") != "no-email@example.com"
-            ]
+            all_flows = [flow for flow in all_flows if flow.get("MAIL") and flow.get("MAIL") != "no-email@example.com"]
             summary_list = [
-                {
-                    "CEDULA": flow.get("CEDULA"),
-                    "NOMBRE": flow.get("NOMBRE"),
-                    "MAIL": flow.get("MAIL"),
-                }
+                {"CEDULA": flow.get("CEDULA"), "NOMBRE": flow.get("NOMBRE"), "MAIL": flow.get("MAIL")}
                 for flow in all_flows
             ]
             return JsonResponse(summary_list, safe=False, status=status.HTTP_200_OK)
@@ -128,425 +119,202 @@ class ListarFlujosPendientes(APIView):
             logger.error(f"Error en la función ListarFlujosPendientes: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#? GENERAR PDF PARA UN ÚNICO FLUJO
-class GenerarPDF(APIView):
+class PDFTemplate(BaseDocTemplate):
+    def __init__(self, filename, **kwargs):
+        super().__init__(filename, **kwargs)
+        self.page_count = 0
+        self.addPageTemplates([
+            PageTemplate(
+                id='main',
+                frames=[Frame(self.leftMargin, self.bottomMargin, self.width, self.height, id='normal')],
+                onPage=self.header,
+                onPageEnd=self.footer
+            )
+        ])
 
-    def _draw_header(self, p, width, height):
-        """Dibuja el encabezado principal"""
+    def header(self, canvas, doc):
+        canvas.saveState()
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
-        p.drawImage(logo_path, 40, height - 50, width=120, height=50, preserveAspectRatio=True, anchor='w', mask='auto')
-        p.setFont("Helvetica-Bold", 18)
-        p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
+        canvas.drawImage(logo_path, 40, doc.height + self.topMargin - 50, width=120, height=50, preserveAspectRatio=True, anchor='w', mask='auto')
+        canvas.setFont("Helvetica-Bold", 18)
+        canvas.drawCentredString(doc.width / 2.0 + doc.leftMargin, doc.height + self.topMargin - 40, "LIQUIDACIÓN DE CRÉDITO")
+        canvas.restoreState()
 
-    def _draw_client_data(self, p, width, y_start, flujo_data):
-        """Dibuja la sección de datos del cliente con espaciado y fuentes mejoradas."""
-        p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
-        p.setFillColor(HexColor('#000000'))
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Datos del cliente")
-        
-        y = y_start - 25
-        line_height = 22
-        col_1_label = 50
-        col_1_value = 160
-        col_2_label = 320
-        col_2_value = 430
-        
-        # Fila 1
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Identificación:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('CEDULA', ''))
+    def footer(self, canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 9.5)
+        page_num = canvas.getPageNumber()
+        if hasattr(doc, 'total_pages'):
+            canvas.drawRightString(doc.width + doc.leftMargin, 30, f"Página: {page_num}/{doc.total_pages}")
+        canvas.restoreState()
 
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Nombre:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('NOMBRE', ''))
+class GenerarPDF(APIView):
+    def _format_number(self, value):
+        try:
+            number = float(str(value).replace('.', '').replace(',', '.'))
+            formatted_value = f'{number:,.0f}'
+            return formatted_value.replace(',', '.')
+        except (ValueError, TypeError):
+            return value
 
-        # Fila 2
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Fecha expedición:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('FECHA_EXPEDICION', 'N/A'))
+    def _get_section_title(self, title, style):
+        return Paragraph(title, style)
 
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Lugar expedición:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('LUGAR_EXPEDICION', 'N/A'))
+    def _get_client_data_table(self, flujo_data, styles):
+        style = styles['Normal']
+        style.fontName = 'Helvetica'
+        style.fontSize = 9.5
+        style.leading = 12
 
-        # Fila 3
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Código:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('CODIGO', ''))
+        def create_para(text, bold=False):
+            return Paragraph(f'<b>{text}</b>' if bold else str(text), style)
 
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Dirección:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('DIRECCION', ''))
-
-        # Fila 4
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Ciudad:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('CIUDAD', ''))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Departamento:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('DEPARTAMENTO', ''))
-
-        y -= 10  # Add vertical space
-
-        # Fila 5
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Dependencia:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('DEPENDENCIA', ''))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Ubicación:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('UBICACION', ''))
-        
-        return y - 25
-
-    def _draw_obligation_data(self, p, width, y_start, flujo_data):
-        """Dibuja la sección de datos de la obligación con espaciado y fuentes mejoradas."""
-        p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
-        p.setFillColor(HexColor('#000000'))
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Datos de la obligación")
-        
-        y = y_start - 25
-        line_height = 22
-        col_1_label = 50
-        col_1_value = 160
-        col_2_label = 320
-        col_2_value = 430
-
-        # Fila 1
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Solicitud:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('SOLICITUD', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Obligación:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('OBLIGACION', 'N/A'))
-
-        # Fila 2
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Número del pagaré:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('NUM_PAGARE', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Modalidad:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('MODALIDAD', ''))
-
-        # Fila 3
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Destinación:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('DESTINACION', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Medio de pago:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('MEDIO_PAGO', ''))
-
-        # Fila 4
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Linea:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('LINEA', ''))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Fecha de solicitud:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('FECHA_SOLICITUD', 'N/A'))
-
-        # Fila 5
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Fecha de aprobación:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('FECHA_APROBACION', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Fecha de desembolso:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('FECHA_DESEMBOLSO', 'N/A'))
-
-        # Fila 6
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "T.E.A:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('TEA', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "T.N.A.M.V:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('TNAMV', 'N/A'))
-
-        # Fila 7
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Tasa Periódica:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('TASA_PERIODICA', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Tasa de usura:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('TASA_USURA', 'N/A'))
-
-        # Fila 8
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Otros conceptos:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('OTROS_CONCEPTOS_INFO', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Seg. Vida:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('SEG_VIDA_PERCENT', 'N/A'))
-
-        # Fila 9
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Forma de pago:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('FORMA_PAGO', ''))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Tipo de tasa:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('TIPO_TASA', 'Fija'))
-
-        # Fila 10
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Fecha primera cuota:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('FECHA_PRIMERA_CUOTA', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Fecha última cuota:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('FECHA_ULTIMA_CUOTA', 'N/A'))
-
-        # Fila 11
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Número de cuotas:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, str(flujo_data.get('NUM_CUOTAS', 'N/A')))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Valor de la cuota:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('VALOR_CUOTA', 'N/A'))
-
-        # Fila 12
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Día de vencimiento:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, str(flujo_data.get('DIA_VENCIMIENTO', 'N/A')))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Periodicidad de pago:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('PERIODICIDAD', 'Mensual'))
-
-        # Fila 13
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Garantía:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('GARANTIA', 'N/A'))
-
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Clasificación:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('CLASIFICACION', 'Consumo'))
-        
-        return y - 25
-
-    def _draw_liquidation_detail(self, p, width, y_start, flujo_data):
-        """Dibuja la tabla de detalle de liquidación"""
-        p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
-        p.setFillColor(HexColor('#000000'))
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Detalle de liquidación")
-        
-        y_pos = y_start - 5
-
-        liquidacion_data = [
-            {'concepto': 'Monto', 'obligacion': flujo_data.get('MONTO', '0'), 'debito': '0', 'credito': ''},
-            {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('INT_ANTICIPADOS', '0')},
-            {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': flujo_data.get('OBLIG_RECOGE', ''), 'debito': '0', 'credito': flujo_data.get('OBLIG_RECOGE_VALOR', '0')},
-            {'concepto': 'Neto a Girar', 'obligacion': '', 'debito': '0', 'credito': flujo_data.get('NETO_GIRAR', '0')}
+        data = [
+            [create_para("Identificación:", True), create_para(flujo_data.get('CEDULA', '')),
+             create_para("Nombre:", True), create_para(flujo_data.get('NOMBRE', ''))],
+            [create_para("Fecha expedición:", True), create_para(flujo_data.get('FECHA_EXPEDICION', 'N/A')),
+             create_para("Lugar expedición:", True), create_para(flujo_data.get('LUGAR_EXPEDICION', 'N/A'))],
+            [create_para("Código:", True), create_para(flujo_data.get('CODIGO', '')),
+             create_para("Dirección:", True), create_para(flujo_data.get('DIRECCION', ''))],
+            [create_para("Ciudad:", True), create_para(flujo_data.get('CIUDAD', '')),
+             create_para("Departamento:", True), create_para(flujo_data.get('DEPARTAMENTO', ''))],
+            [' ', '', '', ''],
+            [create_para("Dependencia:", True), create_para(flujo_data.get('DEPENDENCIA', '')),
+             create_para("Ubicación:", True), create_para(flujo_data.get('UBICACION', ''))]
         ]
-        
-        table_data = [['Concepto', 'Obligación', 'Débito', 'Crédito']]
-        
-        for item in liquidacion_data:
-            table_data.append([
-                item.get('concepto', ''),
-                item.get('obligacion', ''),
-                item.get('debito', ''),
-                item.get('credito', '')
-            ])
-        
-        table = Table(table_data, colWidths=[280, 100, 80, 80])
-        style = TableStyle([
+        table = Table(data, colWidths=[110, 160, 110, 152])
+        table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('SPAN', (0, 4), (-1, 4)),
+            ('BOTTOMPADDING', (0, 3), (-1, 3), 10),
+        ]))
+        return table
+
+    def _get_obligation_data_table(self, flujo_data, styles):
+        style = styles['Normal']
+        style.fontName = 'Helvetica'
+        style.fontSize = 9.5
+        style.leading = 12
+
+        def create_para(text, bold=False):
+            return Paragraph(f'<b>{text}</b>' if bold else str(text), style)
+
+        data = [
+            [create_para("Solicitud:", True), create_para(flujo_data.get('SOLICITUD', 'N/A')), create_para("Obligación:", True), create_para(flujo_data.get('OBLIGACION', 'N/A'))],
+            [create_para("Número del pagaré:", True), create_para(flujo_data.get('NUM_PAGARE', 'N/A')), create_para("Modalidad:", True), create_para(flujo_data.get('MODALIDAD', ''))],
+            [create_para("Destinación:", True), create_para(flujo_data.get('DESTINACION', 'N/A')), create_para("Medio de pago:", True), create_para(flujo_data.get('MEDIO_PAGO', ''))],
+            [create_para("Linea:", True), create_para(flujo_data.get('LINEA', '')), create_para("Fecha de solicitud:", True), create_para(flujo_data.get('FECHA_SOLICITUD', 'N/A'))],
+            [create_para("Fecha de aprobación:", True), create_para(flujo_data.get('FECHA_APROBACION', 'N/A')), create_para("Fecha de desembolso:", True), create_para(flujo_data.get('FECHA_DESEMBOLSO', 'N/A'))],
+            [create_para("T.E.A:", True), create_para(flujo_data.get('TEA', 'N/A')), create_para("T.N.A.M.V:", True), create_para(flujo_data.get('TNAMV', 'N/A'))],
+            [create_para("Tasa Periódica:", True), create_para(flujo_data.get('TASA_PERIODICA', 'N/A')), create_para("Tasa de usura:", True), create_para(flujo_data.get('TASA_USURA', 'N/A'))],
+            [create_para("Otros conceptos:", True), create_para(flujo_data.get('OTROS_CONCEPTOS_INFO', 'N/A')), create_para("Seg. Vida:", True), create_para(flujo_data.get('SEG_VIDA_PERCENT', 'N/A'))],
+            [create_para("Forma de pago:", True), create_para(flujo_data.get('FORMA_PAGO', '')), create_para("Tipo de tasa:", True), create_para(flujo_data.get('TIPO_TASA', 'Fija'))],
+            [create_para("Fecha primera cuota:", True), create_para(flujo_data.get('FECHA_PRIMERA_CUOTA', 'N/A')), create_para("Fecha última cuota:", True), create_para(flujo_data.get('FECHA_ULTIMA_CUOTA', 'N/A'))],
+            [create_para("Número de cuotas:", True), create_para(str(flujo_data.get('NUM_CUOTAS', 'N/A'))), create_para("Valor de la cuota:", True), create_para(self._format_number(flujo_data.get('VALORCUOTA', 'N/A')))],
+            [create_para("Día de vencimiento:", True), create_para(str(flujo_data.get('DIA_VENCIMIENTO', 'N/A'))), create_para("Periodicidad de pago:", True), create_para(flujo_data.get('PERIODICIDAD', 'Mensual'))],
+            [create_para("Garantía:", True), create_para(flujo_data.get('GARANTIA', 'N/A')), create_para("Clasificación:", True), create_para(flujo_data.get('CLASIFICACION', 'Consumo'))],
+        ]
+        table = Table(data, colWidths=[110, 160, 110, 152])
+        table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        return table
+
+    def _get_liquidation_detail_table(self, flujo_data, styles):
+        data = [
+            ['Concepto', 'Obligación', 'Débito', 'Crédito'],
+            ['Monto', self._format_number(flujo_data.get('MONTO', '0')), self._format_number('0'), ''],
+            ['Intereses Anticipados de Ajuste al ciclo', '', self._format_number('0'), self._format_number(flujo_data.get('INT_ANTICIPADOS', '0'))],
+            ['Obligaciones de cartera financiera que recoge', flujo_data.get('OBLIG_RECOGE', ''), self._format_number('0'), self._format_number(flujo_data.get('OBLIG_RECOGE_VALOR', '0'))],
+            ['Neto a Girar', '', self._format_number('0'), self._format_number(flujo_data.get('NETO_GIRAR', '0'))]
+        ]
+        table = Table(data, colWidths=[280, 100, 80, 80])
+        table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9.5),
-            ('FONTSIZE', (0, 1), (-1, -1), 9.5),
+            ('FONTSIZE', (0, 0), (-1, -1), 9.5),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
             ('TOPPADDING', (0, 1), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-        
-        w, h = table.wrapOn(p, width - 80, y_pos)
-        table.drawOn(p, 40, y_pos - h)
-        
-        return y_pos - h - 20
+        ]))
+        return table
 
-    def _draw_payment_table(self, p, width, y_start, flujo_data, start_row=0, end_row=None):
-        """Dibuja la tabla del ciclo de pago con posicionamiento corregido y paginación."""
-        p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
-        p.setFillColor(HexColor('#000000'))
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Ciclo de pago")
-        
-        y_pos = y_start - 5
-
+    def _get_payment_table(self, flujo_data, styles):
         plan_pago_data = flujo_data.get('PLAN_PAGO', [])
         if not plan_pago_data:
-            p.setFont("Helvetica", 9.5)
-            p.drawString(50, y_pos - 15, "No hay datos del plan de pago disponibles.")
-            return y_pos - 30
+            return Paragraph("No hay datos del plan de pago disponibles.", styles['Normal'])
 
-        if end_row is None:
-            end_row = len(plan_pago_data)
-        
-        data_slice = plan_pago_data[start_row:end_row]
-
-        headers = ["No.", "Fecha", "Abono\nCapital", "Abono\nInterés", "Seguro de\nvida", 
-                   "Otros\nconceptos", "Capitalización", "Valor Cuota", "Saldo\nparcial"]
-        col_names = ['CUOTA', 'FECHA', 'ABONO_CAPITAL', 'ABONO_INTERES', 'SEGURO_VIDA', 
-                     'OTROS_CONCEPTOS', 'CAPITALIZACION', 'VALOR_CUOTA', 'SALDO_PARCIAL']
-        
+        headers = ["No.", "Fecha", "Abono\nCapital", "Abono\nInterés", "Seguro de\nvida", "Otros\nconceptos", "Capitalización", "Valor Cuota", "Saldo\nparcial"]
+        col_names = ['CUOTA', 'FECHA', 'ABONO_CAPITAL', 'ABONO_INTERES', 'SEGURO_VIDA', 'OTROS_CONCEPTOS', 'CAPITALIZACION', 'VALOR_CUOTA', 'SALDO_PARCIAL']
         table_data = [headers]
-        
-        for row in data_slice:
-            table_data.append([str(row.get(col, '')) for col in col_names])
-        
-        is_last_slice = (end_row >= len(plan_pago_data))
-        if is_last_slice and len(plan_pago_data) > 0:
+
+        for row in plan_pago_data:
+            table_data.append([self._format_number(row.get(col, '')) if col not in ['CUOTA', 'FECHA'] else row.get(col, '') for col in col_names])
+
+        if len(table_data) > 1:
             totales = ['Totales', '']
             for col_idx, col_name in enumerate(col_names):
                 if col_idx > 1:
                     try:
                         total = sum(float(str(row.get(col_name, 0)).replace(',', '')) for row in plan_pago_data if row.get(col_name))
-                        totales.append(f"{total:,.0f}")
+                        totales.append(self._format_number(total))
                     except (ValueError, TypeError):
                         totales.append('0')
             totales[-1] = ''
             table_data.append(totales)
-        
-        col_widths = [30, 60, 60, 60, 55, 55, 60, 60, 70]
-        table = Table(table_data, colWidths=col_widths)
-        
-        style_commands = [
+
+        table = Table(table_data, colWidths=[30, 60, 60, 60, 55, 55, 60, 60, 70])
+        table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 4),
-            ('BACKGROUND', (0, 1), (-1, -2), colors.white),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('FONTSIZE', (0, 1), (-1, -1), 8.5),
-            ('TOPPADDING', (0, 1), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            ('BACKGROUND', (0, -1), (-1, -1), HexColor('#f0f0f0')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        return table
+
+    def _get_footer_table(self, styles):
+        style = styles['Normal'].clone('footer_style')
+        style.fontName = 'Helvetica-Bold'
+        style.fontSize = 9.5
+        style.alignment = 1 # Center alignment
+
+        data = [
+            [Paragraph("_", style), Paragraph("_", style)],
+            [Paragraph("Nombre del deudor", style), Paragraph("Firma", style)]
         ]
-        
-        if is_last_slice and len(plan_pago_data) > 0:
-            style_commands.extend([
-                ('BACKGROUND', (0, -1), (-1, -1), HexColor('#f0f0f0')),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ])
-        
-        table.setStyle(TableStyle(style_commands))
-        
-        w, h = table.wrapOn(p, width - 80, y_pos)
-        table.drawOn(p, 40, y_pos - h)
-        
-        return y_pos - h - 20
-
-    def _draw_footer(self, p, width, y_position):
-        """Dibuja el pie de página con firmas"""
-        if y_position < 100:
-            p.showPage()
-            y_position = 750
-        
-        p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_position, width - 80, 22, fill=1, stroke=0)
-        p.setFillColor(HexColor('#000000'))
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_position + 7, "Firmas")
-        
-        y = y_position - 40
-        p.setFont("Helvetica-Bold", 9.5)
-        p.line(50, y, 250, y)
-        p.drawString(50, y - 12, "Nombre del deudor")
-        
-        p.line(350, y, 550, y)
-        p.drawString(350, y - 12, "Firma")
-
-    def _draw_page_number(self, p, width, height, page_num, total_pages):
-        """Dibuja el número de página"""
-        p.setFont("Helvetica", 9.5)
-        p.drawRightString(width - 40, 30, f"Página: {page_num}/{total_pages}")
+        table = Table(data, colWidths=[250, 250])
+        table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 20), # Space for signature line
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ]))
+        return table
 
     @swagger_auto_schema(
         operation_description="""Genera un PDF para un único flujo de plan de pagos especificado por su ID.""",
         manual_parameters=[
-            openapi.Parameter('cedula', openapi.IN_PATH, description="Cédula del cliente a generar.", 
-                            type=openapi.TYPE_STRING, required=True)
+            openapi.Parameter('cedula', openapi.IN_PATH, description="Cédula del cliente a generar.", type=openapi.TYPE_STRING, required=True)
         ],
         responses={ 
-            200: openapi.Response('PDF del plan de pagos generado exitosamente.', 
-                                schema=openapi.Schema(type=openapi.TYPE_FILE)),
+            200: openapi.Response('PDF del plan de pagos generado exitosamente.', schema=openapi.Schema(type=openapi.TYPE_FILE)),
             404: 'Flujo no encontrado.',
             500: 'Error en la consulta a la base de datos o en la generación del PDF.'
         }
@@ -554,63 +322,49 @@ class GenerarPDF(APIView):
     def get(self, request, cedula):
         try:
             flujos_filtrados = _filtrar_flujos(cedula=cedula)
-            
             if not flujos_filtrados:
                 return JsonResponse({"error": "Flujo no encontrado para la cédula proporcionada"}, status=status.HTTP_404_NOT_FOUND)
 
             target_flujo = flujos_filtrados[0]
 
             buffer = io.BytesIO()
-            p = canvas.Canvas(buffer, pagesize=letter)
-            width, height = letter
+            doc = PDFTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=80, bottomMargin=50)
             
-            # --- Page 1 ---
-            self._draw_header(p, width, height)
-            
-            y_pos = height - 80
-            y_pos = self._draw_client_data(p, width, y_pos, target_flujo)
-            y_pos -= 15  # Add vertical space
-            y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo)
-            y_pos = self._draw_liquidation_detail(p, width, y_pos, target_flujo)
-            
-            # --- Payment Plan Pages ---
-            plan_pago_data = target_flujo.get('PLAN_PAGO', [])
-            rows_per_page = 30  # Estimated rows per page
-            num_rows = len(plan_pago_data)
-            
-            num_payment_pages = (num_rows + rows_per_page - 1) // rows_per_page
-            if num_payment_pages == 0:
-                num_payment_pages = 1
-            
-            total_pages = 1 + num_payment_pages + 1  # Page1 + PaymentPages + SignaturePage
+            styles = getSampleStyleSheet()
+            title_style = styles['h2'].clone('title_style')
+            title_style.fontName = 'Helvetica-Bold'
+            title_style.fontSize = 10
+            title_style.textColor = colors.black
+            title_style.backColor = HexColor('#d9d9d9')
+            title_style.leading = 16
+            title_style.leftIndent = -6
+            title_style.rightIndent = -6
 
-            self._draw_page_number(p, width, height, 1, total_pages)
+            story = []
+            story.append(self._get_section_title("Datos del cliente", title_style))
+            story.append(self._get_client_data_table(target_flujo, styles))
+            story.append(Spacer(1, 0.2 * inch))
+            story.append(self._get_section_title("Datos de la obligación", title_style))
+            story.append(self._get_obligation_data_table(target_flujo, styles))
+            story.append(Spacer(1, 0.2 * inch))
+            story.append(self._get_section_title("Detalle de liquidación", title_style))
+            story.append(self._get_liquidation_detail_table(target_flujo, styles))
+            story.append(Spacer(1, 0.2 * inch))
+            story.append(self._get_section_title("Ciclo de pago", title_style))
+            story.append(self._get_payment_table(target_flujo, styles))
+            story.append(Spacer(1, 0.4 * inch))
+            story.append(self._get_section_title("Firmas", title_style))
+            story.append(self._get_footer_table(styles))
 
-            page_num = 2
-            start_row = 0
-            for i in range(num_payment_pages):
-                p.showPage()
-                self._draw_header(p, width, height)
-                y_pos_page = height - 80
-                
-                end_row = start_row + rows_per_page
-                
-                self._draw_payment_table(p, width, y_pos_page, target_flujo, start_row, end_row)
-                
-                self._draw_page_number(p, width, height, page_num, total_pages)
-                
-                start_row = end_row
-                page_num += 1
+            def count_pages(canvas, doc):
+                canvas.page_count = canvas.getPageNumber()
 
-            # --- Signature Page ---
-            p.showPage()
-            self._draw_header(p, width, height)
-            self._draw_footer(p, width, height - 80)
-            self._draw_page_number(p, width, height, page_num, total_pages)
-            
-            p.save()
+            doc.multiBuild(story, onEndFirstPass=count_pages)
+
+            doc.total_pages = doc.canv.page_count
+            doc.multiBuild(story)
+
             buffer.seek(0)
-
             response = HttpResponse(buffer, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="plan_pago_{cedula}_{datetime.now().strftime("%Y%m%d")}.pdf"'
             return response
