@@ -189,7 +189,7 @@ class GenerarPDF(APIView):
 
     def _draw_header(self, p, width, height):
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
-        p.drawImage(logo_path, 40, height - 50, width=120, height=50, preserveAspectRatio=True, anchor='w', mask='auto')
+        p.drawImage(logo_path, 40, height - 50, width=150, height=70, preserveAspectRatio=True, anchor='w', mask='auto')
         p.setFont("Helvetica-Bold", 18)
         p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
 
@@ -504,7 +504,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
 
-        y = y_start - 20
+        y = y_start - 10
         line_h = 18
         left = 50
         text_w = width - 100
