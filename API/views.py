@@ -198,10 +198,10 @@ class GenerarPDF(APIView):
 
     def _draw_header(self, p, width, height):
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
-        p.drawImage(logo_path, 40, height - 90, width=130, height=55,
+        p.drawImage(logo_path, 40, height - 50, width=140, height=55,
                     preserveAspectRatio=True, anchor='w', mask='auto')
         p.setFont("Helvetica-Bold", 18)
-        p.drawCentredString(width / 2.0, height - 35, "LIQUIDACIÓN DE CRÉDITO")
+        p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
 
     def _draw_client_data(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
