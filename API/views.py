@@ -198,14 +198,14 @@ class GenerarPDF(APIView):
 
     def _draw_header(self, p, width, height):
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
-        p.drawImage(logo_path, 40, height - 100, width=150, height=60,
+        p.drawImage(logo_path, 40, height - 65, width=120, height=45,
                     preserveAspectRatio=True, anchor='w', mask='auto')
         p.setFont("Helvetica-Bold", 18)
-        p.drawCentredString(width / 2.0, height - 50, "LIQUIDACIÓN DE CRÉDITO")
+        p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
 
     def _draw_client_data(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Datos del cliente")
@@ -277,7 +277,7 @@ class GenerarPDF(APIView):
 
     def _draw_obligation_data(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Datos de la obligación")
@@ -438,7 +438,7 @@ class GenerarPDF(APIView):
 
     def _draw_liquidation_detail(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Detalle de liquidación")
@@ -458,7 +458,7 @@ class GenerarPDF(APIView):
         for item in liquidacion_data:
             table_data.append([item.get('concepto', ''), item.get('obligacion', ''), item.get('debito', ''), item.get('credito', '')])
         
-        table = Table(table_data, colWidths=[280, 100, 80, 80])
+        table = Table(table_data, colWidths=[270, 95, 75, 75])
         style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
@@ -481,35 +481,20 @@ class GenerarPDF(APIView):
         return y_pos - h - 20
 
     def _draw_guarantees_data(self, p, width, y_start, flujo_data):
-        """Dibuja la sección de Garantías con envoltura de texto y saltos de página."""
-        def ensure_space(h_needed, cur_y):
-            # Si no hay espacio suficiente, pasa de página y re-dibuja el encabezado local de sección
-            if cur_y - h_needed < 80:
-                p.showPage()
-                page_w, page_h = letter
-                self._draw_header(p, page_w, page_h)
-                # Redibujar título de sección
-                p.setFillColor(HexColor('#d9d9d9'))
-                p.rect(40, page_h - 80, page_w - 80, 22, fill=1, stroke=0)
-                p.setFillColor(HexColor('#000000'))
-                p.setFont("Helvetica-Bold", 10)
-                p.drawString(50, page_h - 73, "Garantías")
-                return page_h - 100  # nuevo y
-            return cur_y
-
+        """Sección Garantías en dos columnas."""
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
 
-        # MÁS PEGADO AL TÍTULO
-        y = y_start - 10   # antes -18
-        line_h = 14        # más compacto
+        y = y_start - 15
+        col_gap = 300  # separación entre columnas
         left = 50
-        wrap_w = 85
+        right = left + col_gap
+        wrap_w = 45
 
-        # -------- APORTES
+        # -------- APORTES (columna izquierda)
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(left, y, "Aportes")
         y -= 12
@@ -519,54 +504,48 @@ class GenerarPDF(APIView):
             p.drawString(left + 10, y, line)
             y -= 11
 
-        # -------- PERSONALES
-        y -= 5
-        y = ensure_space(line_h * 2, y)
+        # -------- PERSONALES y REALES (columna derecha)
+        y_right = y_start - 15
         p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(left, y, "Personales")
-        y -= line_h
+        p.drawString(right, y_right, "Personales")
+        y_right -= 12
         p.setFont("Helvetica-Bold", 9)
-        p.drawString(left + 10, y, "Nombre")
-        y -= line_h
+        p.drawString(right + 10, y_right, "Nombre")
+        y_right -= 12
         p.setFont("Helvetica", 9)
         personales_val = flujo_data.get('PERSONAL', '') or 'SIN CODEUDORES'
-        # Si viene "A;B;C" muéstralo por líneas
         personales_list = [s.strip() for s in personales_val.split(';') if s.strip()] or [personales_val]
         for item in personales_list:
             for line in textwrap.wrap(item, width=wrap_w):
-                y = ensure_space(14, y)
-                p.drawString(left + 10, y, f"• {line}")
-                y -= 12
+                p.drawString(right + 10, y_right, f"• {line}")
+                y_right -= 11
 
-        # -------- REALES
-        y -= 5
-        y = ensure_space(line_h * 2, y)
+        # Reales debajo de Personales (misma columna)
+        y_right -= 5
         p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(left, y, "Reales")
-        y -= line_h
+        p.drawString(right, y_right, "Reales")
+        y_right -= 12
         p.setFont("Helvetica-Bold", 9)
-        p.drawString(left + 10, y, "Descripción")
-        y -= line_h
+        p.drawString(right + 10, y_right, "Descripción")
+        y_right -= 12
         p.setFont("Helvetica", 9)
-        # OJO: el SP envía REALDESCRIPCIO (sin N). Deja el nombre viejo como respaldo.
         reales_val = (
-            flujo_data.get('REALDESCRIPCIO')
-            or flujo_data.get('REALDESCRIPCION')
+            flujo_data.get('REALDESCRIPCION')
+            or flujo_data.get('REALDESCRIPCIO')
             or 'FGA GARANTÍA: SIN DETALLE'
         )
         reales_list = [s.strip() for s in reales_val.split(';') if s.strip()] or [reales_val]
         for item in reales_list:
             for line in textwrap.wrap(item, width=wrap_w):
-                y = ensure_space(14, y)
-                p.drawString(left + 10, y, f"• {line}")
-                y -= 12
+                p.drawString(right + 10, y_right, f"• {line}")
+                y_right -= 11
 
-        return y - 15
+        return min(y, y_right) - 20
 
 
     def _draw_payment_table(self, p, width, y_start, flujo_data, start_row=0, end_row=None):
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Ciclo de pago")
@@ -649,7 +628,7 @@ class GenerarPDF(APIView):
             y_position = 750
         
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_position, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_position, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_position + 7, "Firmas")
