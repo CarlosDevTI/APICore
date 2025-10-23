@@ -198,9 +198,9 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Datos del cliente")
+        p.drawString(50, y_start + 10, "Datos del cliente")
         
-        y = y_start - 25
+        y = y_start - 18
         line_height = 22
         col_1_label = 50
         col_1_value = 160
@@ -280,9 +280,9 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Datos de la obligación")
+        p.drawString(50, y_start + 10, "Datos de la obligación")
         
-        y = y_start - 25
+        y = y_start - 18
         line_height = 18
         col_1_label = 50
         col_1_value = 160
@@ -433,16 +433,16 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica", 9.5)
         p.drawString(col_2_value, y, flujo_data.get('CLASIFICACION', 'Consumo'))
         y - 10
-        return y - 25
+        return y - 20
 
     def _draw_liquidation_detail(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Detalle de liquidación")
+        p.drawString(50, y_start + 10, "Detalle de liquidación")
         
-        y_pos = y_start - 5
+        y_pos = y_start - 2
 
         liquidacion_data = [
             {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
@@ -507,8 +507,7 @@ class GenerarPDF(APIView):
         y = y_start - 20
         line_h = 18
         left = 50
-        text_w = width - 100
-        wrap_w = 85  # ancho aproximado en caracteres para Helvetica 9 a ese ancho útil
+        wrap_w = 85  # ancho aproximado en caracteres
 
         # -------- APORTES
         y -= line_h
@@ -524,34 +523,28 @@ class GenerarPDF(APIView):
 
         # -------- PERSONALES
         y -= 5
-        y = ensure_space(line_h * 2, y)
+        y = ensure_space(line_h, y)
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(left, y, "Personales")
         y -= line_h
-        p.setFont("Helvetica-Bold", 9)
-        p.drawString(left + 10, y, "Nombre")
-        y -= line_h
         p.setFont("Helvetica", 9)
         personales_val = flujo_data.get('PERSONAL', '') or 'SIN CODEUDORES'
-        # Si viene "A;B;C" muéstralo por líneas
         personales_list = [s.strip() for s in personales_val.split(';') if s.strip()] or [personales_val]
         for item in personales_list:
-            for line in textwrap.wrap(item, width=wrap_w):
+            # Combine label and value on the same line
+            full_line = f"Nombre: • {item}"
+            for line in textwrap.wrap(full_line, width=wrap_w):
                 y = ensure_space(14, y)
-                p.drawString(left + 10, y, f"• {line}")
+                p.drawString(left + 10, y, line)
                 y -= 12
 
         # -------- REALES
         y -= 5
-        y = ensure_space(line_h * 2, y)
+        y = ensure_space(line_h, y)
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(left, y, "Reales")
         y -= line_h
-        p.setFont("Helvetica-Bold", 9)
-        p.drawString(left + 10, y, "Descripción")
-        y -= line_h
         p.setFont("Helvetica", 9)
-        # OJO: el SP envía REALDESCRIPCIO (sin N). Deja el nombre viejo como respaldo.
         reales_val = (
             flujo_data.get('REALDESCRIPCIO')
             or flujo_data.get('REALDESCRIPCION')
@@ -559,9 +552,11 @@ class GenerarPDF(APIView):
         )
         reales_list = [s.strip() for s in reales_val.split(';') if s.strip()] or [reales_val]
         for item in reales_list:
-            for line in textwrap.wrap(item, width=wrap_w):
+            # Combine label and value on the same line
+            full_line = f"Descripción: • {item}"
+            for line in textwrap.wrap(full_line, width=wrap_w):
                 y = ensure_space(14, y)
-                p.drawString(left + 10, y, f"• {line}")
+                p.drawString(left + 10, y, line)
                 y -= 12
 
         return y - 15
