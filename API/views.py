@@ -198,11 +198,10 @@ class GenerarPDF(APIView):
 
     def _draw_header(self, p, width, height):
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
-        # Logo más grande, pero alineado verticalmente con el título
-        p.drawImage(logo_path, 40, height - 80, width=150, height=60,
+        p.drawImage(logo_path, 40, height - 100, width=150, height=60,
                     preserveAspectRatio=True, anchor='w', mask='auto')
         p.setFont("Helvetica-Bold", 18)
-        p.drawCentredString(width / 2.0, height - 45, "LIQUIDACIÓN DE CRÉDITO")
+        p.drawCentredString(width / 2.0, height - 50, "LIQUIDACIÓN DE CRÉDITO")
 
     def _draw_client_data(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
@@ -504,22 +503,19 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
 
-        # Igualamos distancia al bloque anterior (más pegado al título)
-        y = y_start - 12
-        line_h = 15  # más compacto
+        # MÁS PEGADO AL TÍTULO
+        y = y_start - 10   # antes -18
+        line_h = 14        # más compacto
         left = 50
-        text_w = width - 100
-        wrap_w = 85  # ancho aproximado en caracteres para Helvetica 9 a ese ancho útil
+        wrap_w = 85
 
         # -------- APORTES
-        y -= line_h
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(left, y, "Aportes")
-        y -= 14  # antes line_h (18)
+        y -= 12
         p.setFont("Helvetica", 9)
         aportes_val = flujo_data.get('GARANAPOPIGNO', '') or 'PIGNORACIÓN: NO HA PIGNORADO APORTES'
         for line in textwrap.wrap(aportes_val, width=wrap_w):
-            y = ensure_space(12, y)
             p.drawString(left + 10, y, line)
             y -= 11
 
@@ -685,7 +681,7 @@ class GenerarPDF(APIView):
             
             self._draw_header(p, width, height)
             
-            y_pos = height - 70
+            y_pos = height - 80
             y_pos = self._draw_client_data(p, width, y_pos, target_flujo)
             y_pos -= 4
             y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo)
