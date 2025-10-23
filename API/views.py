@@ -47,6 +47,11 @@ def _filtrar_flujos(cedula=None):
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
             
+            for row in all_rows:
+                for key, value in row.items():
+                    if value is None:
+                        row[key] = ''
+
             if cedula:
                 all_rows = [row for row in all_rows if str(row.get('CEDULA', '')) == str(cedula)]
 
