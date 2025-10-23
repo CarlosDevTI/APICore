@@ -484,7 +484,7 @@ class GenerarPDF(APIView):
         """Dibuja la sección de Garantías con estructura 2x2:
         Aportes (ancho completo), y debajo Personales / Reales en columnas."""
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
