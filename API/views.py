@@ -9,6 +9,7 @@ import os
 from django.conf import settings
 import oracledb
 import io
+from decimal import Decimal, InvalidOperation
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Table, TableStyle
@@ -25,6 +26,53 @@ def _get_oracle_connection():
     db = settings.DATABASES['oracle']
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
+
+def _parse_number(self, s):
+    """
+    Convierte una cadena en Decimal entendiendo formatos:
+    - '1.234.567' -> 1234567
+    - '146004,84' -> 146004.84
+    - '146004.84' -> 146004.84
+    - '3,791,706'  -> 3791706
+    - '' o None    -> 0
+    """
+    if s is None:
+        return Decimal(0)
+    s = str(s).strip()
+    if not s:
+        return Decimal(0)
+
+    # Si tiene ambos separadores, asume . = miles, , = decimal (formato latam)
+    if '.' in s and ',' in s:
+        s = s.replace('.', '').replace(',', '.')
+    else:
+        # Si sólo tiene ',', asúmela como decimal
+        if ',' in s:
+            s = s.replace('.', '')  # por si acaso vinieran puntos de miles mezclados
+            s = s.replace(',', '.')
+        else:
+            # Sólo tiene puntos. ¿Es decimal?
+            parts = s.split('.')
+            if len(parts) > 1 and len(parts[-1]) <= 2:
+                # ej: 146004.84 => decimal, se conserva
+                s = ''.join(parts[:-1]) + '.' + parts[-1]
+            else:
+                # ej: 1.234.567 => miles, se remueven
+                s = s.replace('.', '')
+
+    try:
+        return Decimal(s)
+    except InvalidOperation:
+        return Decimal(0)
+
+def _format_colombian(self, num_str):
+    """Formatea a miles con punto. Acepta str/Decimal/float; sin decimales en la salida."""
+    try:
+        val = self._parse_number(num_str)
+        return f"{int(val):,}".replace(",", ".")
+    except Exception:
+        return str(num_str)
+
 
 def _filtrar_flujos(cedula=None):
     """
@@ -46,6 +94,7 @@ def _filtrar_flujos(cedula=None):
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
+            print(all_rows)
             
             for row in all_rows:
                 for key, value in row.items():
@@ -69,7 +118,7 @@ def _filtrar_flujos(cedula=None):
                 fechas = str(row.get('FECHA', '')).split(';')
                 abonos_capital = str(row.get('ABONO_CAPITAL', '')).split(';')
                 abonos_interes = str(row.get('ABONO_INTERES', '')).split(';')
-                seguros_vida = str(row.get('SEGURO_VIDA', '')).split(';')
+                # seguros_vida = str(row.get('SEGURO_VIDA', '')).split(';') EL CAMPO SEGUROS DE VIDA NO EXISTE PORQUE VA INMERSO EN OTROS CONCEPTOS
                 otros_conceptos = str(row.get('OTROS_CONCEPTOS', '')).split(';')
                 capitalizaciones = str(row.get('CAPITALIZACION', '')).split(';')
                 valores_cuota = str(row.get('VALOR_CUOTA', '')).split(';')
@@ -77,19 +126,28 @@ def _filtrar_flujos(cedula=None):
 
                 num_cuotas = len(nos)
                 for i in range(num_cuotas):
+                    # Dentro del for i in range(num_cuotas):
                     plan_pago.append({
-                        'NO': nos[i] if i < len(nos) else '',
-                        'FECHA': fechas[i] if i < len(fechas) else '',
-                        'ABONO_CAPITAL': abonos_capital[i] if i < len(abonos_capital) else '',
-                        'ABONO_INTERES': abonos_interes[i] if i < len(abonos_interes) else '',
-                        'SEGURO_VIDA': seguros_vida[i] if i < len(seguros_vida) else '',
-                        'OTROS_CONCEPTOS': otros_conceptos[i] if i < len(otros_conceptos) else '',
-                        'CAPITALIZACION': capitalizaciones[i] if i < len(capitalizaciones) else '',
-                        'VALOR_CUOTA': valores_cuota[i] if i < len(valores_cuota) else '',
-                        'SALDO_PARCIAL': saldos_parcial[i] if i < len(saldos_parcial) else '',
+                        'NO': (nos[i] if i < len(nos) else '').strip(),
+                        'FECHA': (fechas[i] if i < len(fechas) else '').strip(),
+                        'ABONO_CAPITAL': (abonos_capital[i] if i < len(abonos_capital) else '').strip(),
+                        'ABONO_INTERES': (abonos_interes[i] if i < len(abonos_interes) else '').strip(),
+                        'OTROS_CONCEPTOS': (otros_conceptos[i] if i < len(otros_conceptos) else '').strip(),
+                        'CAPITALIZACION': (capitalizaciones[i] if i < len(capitalizaciones) else '').strip(),
+                        'VALOR_CUOTA': (valores_cuota[i] if i < len(valores_cuota) else '').strip(),
+                        'SALDO_PARCIAL': (saldos_parcial[i] if i < len(saldos_parcial) else '').strip(),
                     })
                 
                 row['PLAN_PAGO'] = plan_pago
+                # --- FECHAULTIMA: última fecha no vacía
+                fechas_no_vacias = [r['FECHA'] for r in plan_pago if r.get('FECHA')]
+                row['FECHAULTIMA'] = fechas_no_vacias[-1] if fechas_no_vacias else row.get('FECHAULTIMA', 'N/A')
+
+                # --- VALORCUOTA: toma el de NO == '1' o el primer no vacío como respaldo
+                valor_cuota_no1 = next((r.get('VALOR_CUOTA') for r in plan_pago if str(r.get('NO')) == '1' and r.get('VALOR_CUOTA')), None)
+                if not valor_cuota_no1:
+                    valor_cuota_no1 = next((r.get('VALOR_CUOTA') for r in plan_pago if r.get('VALOR_CUOTA')), None)
+                row['VALORCUOTA'] = valor_cuota_no1 or row.get('VALORCUOTA', 'N/A')
                 data.append(row)
             return data
 
@@ -325,20 +383,22 @@ class GenerarPDF(APIView):
         p.drawString(col_1_value, y, flujo_data.get('OTROSCONCEPTO', 'N/A'))
 
         p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_2_label, y, "Seg. Vida:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('SEGURO_VIDA', 'N/A'))
-
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(col_1_label, y, "Forma de pago:")
-        p.setFont("Helvetica", 9.5)
-        p.drawString(col_1_value, y, flujo_data.get('FORMAPAGO', ''))
-
-        p.setFont("Helvetica-Bold", 9.5)
         p.drawString(col_2_label, y, "Tipo de tasa:")
         p.setFont("Helvetica", 9.5)
         p.drawString(col_2_value, y, flujo_data.get('TIPOTASA', 'Fija'))
+
+        y -= line_height
+
+        p.setFont("Helvetica-Bold", 9.5)
+        p.drawString(col_1_label, y, "Factor de variabilidad:")
+        p.setFont("Helvetica", 9.5)
+        p.drawString(col_1_value, y, flujo_data.get('FACVARIABI', 'N/A'))
+
+        p.setFont("Helvetica-Bold", 9.5)
+        p.drawString(col_2_label, y, "Forma de pago:")
+        p.setFont("Helvetica", 9.5)
+        p.drawString(col_2_value, y, flujo_data.get('FORMAPAGO', ''))
+
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
@@ -430,54 +490,93 @@ class GenerarPDF(APIView):
         
         return y_pos - h - 20
 
+    # 1) Reemplaza _draw_guarantees_data completo por este:
+
     def _draw_guarantees_data(self, p, width, y_start, flujo_data):
-        """Dibuja la sección de Garantías."""
+        """Dibuja la sección de Garantías con envoltura de texto y saltos de página."""
+        def ensure_space(h_needed, cur_y):
+            # Si no hay espacio suficiente, pasa de página y re-dibuja el encabezado local de sección
+            if cur_y - h_needed < 80:
+                p.showPage()
+                page_w, page_h = letter
+                self._draw_header(p, page_w, page_h)
+                # Redibujar título de sección
+                p.setFillColor(HexColor('#d9d9d9'))
+                p.rect(40, page_h - 80, page_w - 80, 22, fill=1, stroke=0)
+                p.setFillColor(HexColor('#000000'))
+                p.setFont("Helvetica-Bold", 10)
+                p.drawString(50, page_h - 73, "Garantías")
+                return page_h - 100  # nuevo y
+            return cur_y
+
         p.setFillColor(HexColor('#d9d9d9'))
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
-        
+
         y = y_start - 20
-        line_height = 18
-        left_margin = 50
+        line_h = 18
+        left = 50
+        text_w = width - 100
+        wrap_w = 85  # ancho aproximado en caracteres para Helvetica 9 a ese ancho útil
 
-        y -= line_height
+        # -------- APORTES
+        y -= line_h
         p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(left_margin, y, "Aportes")
-        y -= line_height
+        p.drawString(left, y, "Aportes")
+        y -= line_h
         p.setFont("Helvetica", 9)
-        aportes_val = flujo_data.get('GARANAPOPIGNO', 'Pignoración: NO HA PIGNORADO APORTES')
-        p.drawString(left_margin + 10, y, aportes_val)
-
-        y -= (line_height + 5)
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(left_margin, y, "Personales")
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9)
-        p.drawString(left_margin + 10, y, "Nombre")
-        y -= line_height
-        p.setFont("Helvetica", 9)
-        personales_val = flujo_data.get('PERSONAL', 'SIN CODEUDORES')
-        p.drawString(left_margin + 10, y, personales_val)
-
-        y -= (line_height + 5)
-        p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(left_margin, y, "Reales")
-        y -= line_height
-        p.setFont("Helvetica-Bold", 9)
-        p.drawString(left_margin + 10, y, "Descripción")
-        y -= line_height
-        p.setFont("Helvetica", 9)
-        reales_val = flujo_data.get('REALDESCRIPCION', 'FGA GARANTIA FGA No. 1112 Vlr Titulos ---> 1 Cobertura Disponible: 1')
-        
-        max_len = 80
-        lines = textwrap.wrap(reales_val, width=max_len)
-        for line in lines:
-            p.drawString(left_margin + 10, y, line)
+        aportes_val = flujo_data.get('GARANAPOPIGNO', '') or 'PIGNORACIÓN: NO HA PIGNORADO APORTES'
+        for line in textwrap.wrap(aportes_val, width=wrap_w):
+            y = ensure_space(14, y)
+            p.drawString(left + 10, y, line)
             y -= 12
 
+        # -------- PERSONALES
+        y -= 5
+        y = ensure_space(line_h * 2, y)
+        p.setFont("Helvetica-Bold", 9.5)
+        p.drawString(left, y, "Personales")
+        y -= line_h
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(left + 10, y, "Nombre")
+        y -= line_h
+        p.setFont("Helvetica", 9)
+        personales_val = flujo_data.get('PERSONAL', '') or 'SIN CODEUDORES'
+        # Si viene "A;B;C" muéstralo por líneas
+        personales_list = [s.strip() for s in personales_val.split(';') if s.strip()] or [personales_val]
+        for item in personales_list:
+            for line in textwrap.wrap(item, width=wrap_w):
+                y = ensure_space(14, y)
+                p.drawString(left + 10, y, f"• {line}")
+                y -= 12
+
+        # -------- REALES
+        y -= 5
+        y = ensure_space(line_h * 2, y)
+        p.setFont("Helvetica-Bold", 9.5)
+        p.drawString(left, y, "Reales")
+        y -= line_h
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(left + 10, y, "Descripción")
+        y -= line_h
+        p.setFont("Helvetica", 9)
+        # OJO: el SP envía REALDESCRIPCIO (sin N). Deja el nombre viejo como respaldo.
+        reales_val = (
+            flujo_data.get('REALDESCRIPCIO')
+            or flujo_data.get('REALDESCRIPCION')
+            or 'FGA GARANTÍA: SIN DETALLE'
+        )
+        reales_list = [s.strip() for s in reales_val.split(';') if s.strip()] or [reales_val]
+        for item in reales_list:
+            for line in textwrap.wrap(item, width=wrap_w):
+                y = ensure_space(14, y)
+                p.drawString(left + 10, y, f"• {line}")
+                y -= 12
+
         return y - 15
+
 
     def _draw_payment_table(self, p, width, y_start, flujo_data, start_row=0, end_row=None):
         p.setFillColor(HexColor('#d9d9d9'))
@@ -515,15 +614,14 @@ class GenerarPDF(APIView):
             table_data.append(formatted_row)
 
         is_last_slice = (end_row >= len(plan_pago_data))
+        # Dentro de _draw_payment_table, en el bloque de totales:
         if is_last_slice and len(plan_pago_data) > 0:
             totales = ['Totales', '']
             for col_idx, col_name in enumerate(col_names):
                 if col_idx > 1:
-                    try:
-                        total = sum(float(str(row.get(col_name, 0)).replace('.', '').replace(',', '.')) for row in plan_pago_data if row.get(col_name))
-                        totales.append(self._format_colombian(total))
-                    except (ValueError, TypeError):
-                        totales.append('0')
+                    total = sum(self._parse_number(row.get(col_name, 0)) for row in plan_pago_data if row.get(col_name) not in (None, ''))
+                    totales.append(self._format_colombian(total))
+            # Vacía el total de "Saldo parcial"
             totales[-1] = ''
             table_data.append(totales)
         
