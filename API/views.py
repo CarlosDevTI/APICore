@@ -458,7 +458,7 @@ class GenerarPDF(APIView):
         for item in liquidacion_data:
             table_data.append([item.get('concepto', ''), item.get('obligacion', ''), item.get('debito', ''), item.get('credito', '')])
         
-        table = Table(table_data, colWidths=[270, 95, 75, 75])
+        table = Table(table_data, colWidths=[280, 100, 80, 80])
         style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
@@ -481,50 +481,61 @@ class GenerarPDF(APIView):
         return y_pos - h - 20
 
     def _draw_guarantees_data(self, p, width, y_start, flujo_data):
-        """Sección Garantías en dos columnas."""
+        """Dibuja la sección de Garantías con estructura 2x2:
+        Aportes (ancho completo), y debajo Personales / Reales en columnas."""
         p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_start, width - 70, 22, fill=1, stroke=0)
+        p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
 
-        y = y_start - 15
-        col_gap = 300  # separación entre columnas
+        # Margen superior más pegado al título
+        y = y_start - 14
         left = 50
-        right = left + col_gap
-        wrap_w = 45
+        wrap_w_full = 90   # ancho de línea para Aportes
+        wrap_w_col = 45    # ancho para columnas Personales / Reales
+        col_gap = 270      # distancia horizontal entre columnas
 
-        # -------- APORTES (columna izquierda)
+        # ------------------------------------------------------------------
+        # APORTES (una sola fila, ocupa todo el ancho)
+        # ------------------------------------------------------------------
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(left, y, "Aportes")
         y -= 12
         p.setFont("Helvetica", 9)
         aportes_val = flujo_data.get('GARANAPOPIGNO', '') or 'PIGNORACIÓN: NO HA PIGNORADO APORTES'
-        for line in textwrap.wrap(aportes_val, width=wrap_w):
+        for line in textwrap.wrap(aportes_val, width=wrap_w_full):
             p.drawString(left + 10, y, line)
             y -= 11
 
-        # -------- PERSONALES y REALES (columna derecha)
-        y_right = y_start - 15
+        # Espacio pequeño entre Aportes y el bloque inferior
+        y -= 5
+        y_bottom_start = y
+
+        # ------------------------------------------------------------------
+        # PERSONALES (columna izquierda)
+        # ------------------------------------------------------------------
         p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(right, y_right, "Personales")
-        y_right -= 12
+        p.drawString(left, y_bottom_start, "Personales")
+        y_left = y_bottom_start - 12
         p.setFont("Helvetica-Bold", 9)
-        p.drawString(right + 10, y_right, "Nombre")
-        y_right -= 12
+        p.drawString(left + 10, y_left, "Nombre")
+        y_left -= 12
         p.setFont("Helvetica", 9)
         personales_val = flujo_data.get('PERSONAL', '') or 'SIN CODEUDORES'
         personales_list = [s.strip() for s in personales_val.split(';') if s.strip()] or [personales_val]
         for item in personales_list:
-            for line in textwrap.wrap(item, width=wrap_w):
-                p.drawString(right + 10, y_right, f"• {line}")
-                y_right -= 11
+            for line in textwrap.wrap(item, width=wrap_w_col):
+                p.drawString(left + 10, y_left, f"• {line}")
+                y_left -= 11
 
-        # Reales debajo de Personales (misma columna)
-        y_right -= 5
+        # ------------------------------------------------------------------
+        # REALES (columna derecha)
+        # ------------------------------------------------------------------
+        right = left + col_gap
         p.setFont("Helvetica-Bold", 9.5)
-        p.drawString(right, y_right, "Reales")
-        y_right -= 12
+        p.drawString(right, y_bottom_start, "Reales")
+        y_right = y_bottom_start - 12
         p.setFont("Helvetica-Bold", 9)
         p.drawString(right + 10, y_right, "Descripción")
         y_right -= 12
@@ -536,11 +547,14 @@ class GenerarPDF(APIView):
         )
         reales_list = [s.strip() for s in reales_val.split(';') if s.strip()] or [reales_val]
         for item in reales_list:
-            for line in textwrap.wrap(item, width=wrap_w):
+            for line in textwrap.wrap(item, width=wrap_w_col):
                 p.drawString(right + 10, y_right, f"• {line}")
                 y_right -= 11
 
-        return min(y, y_right) - 20
+        # ------------------------------------------------------------------
+        # Ajusta retorno para continuar el flujo del documento
+        # ------------------------------------------------------------------
+        return min(y_left, y_right) - 20
 
 
     def _draw_payment_table(self, p, width, y_start, flujo_data, start_row=0, end_row=None):
