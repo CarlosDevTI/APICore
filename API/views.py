@@ -198,9 +198,9 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 10, "Datos del cliente")
+        p.drawString(50, y_start + 15, "Datos del cliente")
         
-        y = y_start - 18
+        y = y_start - 10
         line_height = 22
         col_1_label = 50
         col_1_value = 160
@@ -280,10 +280,10 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 10, "Datos de la obligación")
+        p.drawString(50, y_start + 12, "Datos de la obligación")
         
-        y = y_start - 18
-        line_height = 18
+        y = y_start - 10
+        line_height = 15
         col_1_label = 50
         col_1_value = 160
         col_2_label = 320
@@ -440,9 +440,9 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 10, "Detalle de liquidación")
+        p.drawString(50, y_start + 12, "Detalle de liquidación")
         
-        y_pos = y_start - 2
+        y_pos = y_start
 
         liquidacion_data = [
             {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
@@ -502,9 +502,9 @@ class GenerarPDF(APIView):
         p.rect(40, y_start, width - 80, 22, fill=1, stroke=0)
         p.setFillColor(HexColor('#000000'))
         p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_start + 7, "Garantías")
+        p.drawString(50, y_start + 12, "Garantías")
 
-        y = y_start - 20
+        y = y_start - 0
         line_h = 18
         left = 50
         wrap_w = 85  # ancho aproximado en caracteres
