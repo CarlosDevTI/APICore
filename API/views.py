@@ -47,7 +47,7 @@ def _filtrar_flujos(cedula=None):
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
-            print(all_rows)
+            # print(all_rows) Impresiones de seguimiento (DESCOMENTAR SI LAS QUIERE VER SOCIO - SAPO)
             
             for row in all_rows:
                 for key, value in row.items():
