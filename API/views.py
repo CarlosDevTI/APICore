@@ -187,11 +187,22 @@ class GenerarPDF(APIView):
         except Exception:
             return str(num_str)
 
+    def _draw_wrapped_text(self, p, x, y, text, max_width=35):
+        """Escribe texto con salto de línea si excede longitud."""
+        if not text:
+            return y
+        lines = textwrap.wrap(text, width=max_width)
+        for i, line in enumerate(lines):
+            p.drawString(x, y - (i * 12), line)
+        return y - (len(lines) - 1) * 12
+
     def _draw_header(self, p, width, height):
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Logo.png')
-        p.drawImage(logo_path, 40, height - 50, width=150, height=70, preserveAspectRatio=True, anchor='w', mask='auto')
+        # Logo más grande, pero alineado verticalmente con el título
+        p.drawImage(logo_path, 40, height - 90, width=160, height=70,
+                    preserveAspectRatio=True, anchor='w', mask='auto')
         p.setFont("Helvetica-Bold", 18)
-        p.drawCentredString(width / 2.0, height - 40, "LIQUIDACIÓN DE CRÉDITO")
+        p.drawCentredString(width / 2.0, height - 50, "LIQUIDACIÓN DE CRÉDITO")
 
     def _draw_client_data(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
@@ -215,19 +226,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(col_2_label, y, "Nombre:")
         p.setFont("Helvetica", 9.5)
-        
-        nombre = flujo_data.get('NOMBRE', '')
-        extra_y_offset = 0
-        max_len = 30
-        if len(nombre) > max_len:
-            lines = textwrap.wrap(nombre, width=max_len)
-            p.drawString(col_2_value, y, lines[0])
-            if len(lines) > 1:
-                extra_y_offset = 14
-                y -= extra_y_offset
-                p.drawString(col_2_value, y, " ".join(lines[1:]))
-        else:
-            p.drawString(col_2_value, y, nombre)
+        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('NOMBRE', 'N/A'), max_width=35)
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
@@ -238,7 +237,8 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(col_2_label, y, "Lugar expedición:")
         p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('LUGAREXP', 'N/A'))
+        # p.drawString(col_2_value, y, flujo_data.get('LUGAREXP', 'N/A'))
+        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('LUGAREXP', ''), max_width=35) #! SE UTILIZA UNA FUNCIÓN PARA HACER WRAP
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
@@ -249,7 +249,8 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(col_2_label, y, "Dirección:")
         p.setFont("Helvetica", 9.5)
-        p.drawString(col_2_value, y, flujo_data.get('DIRECCION', ''))
+        # p.drawString(col_2_value, y, flujo_data.get('DIRECCION', ''))
+        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('DIRECCION', ''), max_width=35) #! SE UTILIZA UNA FUNCIÓN PARA HACER WRAP
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
@@ -273,7 +274,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica", 9.5)
         p.drawString(col_2_value, y, flujo_data.get('UBICACION', ''))
         
-        return y - 25 - extra_y_offset
+        return y - 25
 
     def _draw_obligation_data(self, p, width, y_start, flujo_data):
         p.setFillColor(HexColor('#d9d9d9'))
@@ -282,7 +283,8 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Datos de la obligación")
         
-        y = y_start - 20
+        # SUBE ligeramente la primera línea (antes: y_start - 25)
+        y = y_start - 18
         line_height = 15
         col_1_label = 50
         col_1_value = 160
@@ -479,8 +481,6 @@ class GenerarPDF(APIView):
         
         return y_pos - h - 20
 
-    # 1) Reemplaza _draw_guarantees_data completo por este:
-
     def _draw_guarantees_data(self, p, width, y_start, flujo_data):
         """Dibuja la sección de Garantías con envoltura de texto y saltos de página."""
         def ensure_space(h_needed, cur_y):
@@ -504,7 +504,8 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y_start + 7, "Garantías")
 
-        y = y_start - 10
+        # Igualamos distancia al bloque anterior (más pegado al título)
+        y = y_start - 18
         line_h = 18
         left = 50
         text_w = width - 100
@@ -684,13 +685,13 @@ class GenerarPDF(APIView):
             
             self._draw_header(p, width, height)
             
-            y_pos = height - 80
+            y_pos = height - 90
             y_pos = self._draw_client_data(p, width, y_pos, target_flujo)
-            y_pos -= 7
+            y_pos -= 4
             y_pos = self._draw_obligation_data(p, width, y_pos, target_flujo)
-            y_pos -= 12
+            y_pos -= 4
             y_pos = self._draw_liquidation_detail(p, width, y_pos, target_flujo)
-            y_pos -= 13
+            y_pos -= 6
             y_pos = self._draw_guarantees_data(p, width, y_pos, target_flujo)
             
             plan_pago_data = target_flujo.get('PLAN_PAGO', [])
