@@ -27,53 +27,6 @@ def _get_oracle_connection():
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
 
-def _parse_number(self, s):
-    """
-    Convierte una cadena en Decimal entendiendo formatos:
-    - '1.234.567' -> 1234567
-    - '146004,84' -> 146004.84
-    - '146004.84' -> 146004.84
-    - '3,791,706'  -> 3791706
-    - '' o None    -> 0
-    """
-    if s is None:
-        return Decimal(0)
-    s = str(s).strip()
-    if not s:
-        return Decimal(0)
-
-    # Si tiene ambos separadores, asume . = miles, , = decimal (formato latam)
-    if '.' in s and ',' in s:
-        s = s.replace('.', '').replace(',', '.')
-    else:
-        # Si sólo tiene ',', asúmela como decimal
-        if ',' in s:
-            s = s.replace('.', '')  # por si acaso vinieran puntos de miles mezclados
-            s = s.replace(',', '.')
-        else:
-            # Sólo tiene puntos. ¿Es decimal?
-            parts = s.split('.')
-            if len(parts) > 1 and len(parts[-1]) <= 2:
-                # ej: 146004.84 => decimal, se conserva
-                s = ''.join(parts[:-1]) + '.' + parts[-1]
-            else:
-                # ej: 1.234.567 => miles, se remueven
-                s = s.replace('.', '')
-
-    try:
-        return Decimal(s)
-    except InvalidOperation:
-        return Decimal(0)
-
-def _format_colombian(self, num_str):
-    """Formatea a miles con punto. Acepta str/Decimal/float; sin decimales en la salida."""
-    try:
-        val = self._parse_number(num_str)
-        return f"{int(val):,}".replace(",", ".")
-    except Exception:
-        return str(num_str)
-
-
 def _filtrar_flujos(cedula=None):
     """
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
@@ -188,14 +141,50 @@ class ListarFlujosPendientes(APIView):
 
 class GenerarPDF(APIView):
 
-    def _format_colombian(self, num_str):
-        if num_str is None or str(num_str).strip() == '':
-            return '0'
+    def _parse_number(self, s):
+        """
+        Convierte una cadena en Decimal entendiendo formatos:
+        - '1.234.567' -> 1234567
+        - '146004,84' -> 146004.84
+        - '146004.84' -> 146004.84
+        - '3,791,706'  -> 3791706
+        - '' o None    -> 0
+        """
+        if s is None:
+            return Decimal(0)
+        s = str(s).strip()
+        if not s:
+            return Decimal(0)
+
+        # Si tiene ambos separadores, asume . = miles, , = decimal (formato latam)
+        if '.' in s and ',' in s:
+            s = s.replace('.', '').replace(',', '.')
+        else:
+            # Si sólo tiene ',', asúmela como decimal
+            if ',' in s:
+                s = s.replace('.', '')  # por si acaso vinieran puntos de miles mezclados
+                s = s.replace(',', '.')
+            else:
+                # Sólo tiene puntos. ¿Es decimal?
+                parts = s.split('.')
+                if len(parts) > 1 and len(parts[-1]) <= 2:
+                    # ej: 146004.84 => decimal, se conserva
+                    s = ''.join(parts[:-1]) + '.' + parts[-1]
+                else:
+                    # ej: 1.234.567 => miles, se remueven
+                    s = s.replace('.', '')
+
         try:
-            cleaned_str = str(num_str).replace('.', '').replace(',', '.')
-            number = float(cleaned_str)
-            return f'{int(number):,}'.replace(',', '.')
-        except (ValueError, TypeError):
+            return Decimal(s)
+        except InvalidOperation:
+            return Decimal(0)
+
+    def _format_colombian(self, num_str):
+        """Formatea a miles con punto. Acepta str/Decimal/float; sin decimales en la salida."""
+        try:
+            val = self._parse_number(num_str)
+            return f"{int(val):,}".replace(",", ".")
+        except Exception:
             return str(num_str)
 
     def _draw_header(self, p, width, height):
