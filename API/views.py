@@ -669,7 +669,9 @@ class GenerarPDF(APIView):
             target_flujo = flujos_filtrados[0]
 
             buffer = io.BytesIO()
-            p = canvas.Canvas(buffer, pagesize=letter)
+
+            cedula_password = str(target_flujo.get('CEDULA', ''))
+            p = canvas.Canvas(buffer, pagesize=letter, encrypt=cedula_password)
             width, height = letter
             
             self._draw_header(p, width, height)
