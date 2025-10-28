@@ -446,17 +446,23 @@ class GenerarPDF(APIView):
         y_pos = y_start - 2
 
         liquidacion_data = [
-            {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
-            {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': self._format_colombian(flujo_data.get('INTEOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
-            {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': self._format_colombian(flujo_data.get('OBLIOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLIDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLICREDITO', '0'))},
-            {'concepto': 'Obligaciones 2', 'obligacion': self._format_colombian(flujo_data.get('OBLI2OBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLI2DEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLI2CREDITO', '0'))},
-            {'concepto': 'Neto a Girar', 'obligacion': self._format_colombian(flujo_data.get('NETOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('NETOCREDITO', '0'))}
+            {'concepto': 'Monto', 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
+            {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
+            {'concepto': 'Neto a Girar', 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('NETOCREDITO', '0'))}
         ]
+
+        # liquidacion_data = [
+        #     {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
+        #     {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': self._format_colombian(flujo_data.get('INTEOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
+        #     {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': self._format_colombian(flujo_data.get('OBLIOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLIDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLICREDITO', '0'))},
+        #     {'concepto': 'Obligaciones 2', 'obligacion': self._format_colombian(flujo_data.get('OBLI2OBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLI2DEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLI2CREDITO', '0'))},
+        #     {'concepto': 'Neto a Girar', 'obligacion': self._format_colombian(flujo_data.get('NETOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('NETOCREDITO', '0'))}
+        # ]
         
-        table_data = [['Concepto', 'Obligación', 'Débito', 'Crédito']]
+        table_data = [['Concepto', 'Débito', 'Crédito']]
         
         for item in liquidacion_data:
-            table_data.append([item.get('concepto', ''), item.get('obligacion', ''), item.get('debito', ''), item.get('credito', '')])
+            table_data.append([item.get('concepto', ''), item.get('debito', ''), item.get('credito', '')])
         
         table = Table(table_data, colWidths=[280, 100, 80, 80])
         style = TableStyle([
