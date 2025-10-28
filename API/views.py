@@ -464,7 +464,7 @@ class GenerarPDF(APIView):
         for item in liquidacion_data:
             table_data.append([item.get('concepto', ''), item.get('debito', ''), item.get('credito', '')])
         
-        table = Table(table_data, colWidths=[280, 100, 80, 80])
+        table = Table(table_data, colWidths=[380, 80, 80])
         style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
