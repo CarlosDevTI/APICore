@@ -445,10 +445,15 @@ class GenerarPDF(APIView):
         
         y_pos = y_start - 2
 
+        # Calcular NETOCREDITO como MONTODEBITO - INTECREDITO
+        montodebito = self._parse_number(flujo_data.get('MONTODEBITO', '0'))
+        intecredito = self._parse_number(flujo_data.get('INTECREDITO', '0'))
+        netocredito = montodebito - intecredito
+
         liquidacion_data = [
             {'concepto': 'Monto', 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
             {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
-            {'concepto': 'Neto a Girar', 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('NETOCREDITO', '0'))}
+            {'concepto': 'Neto a Girar', 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(netocredito)}
         ]
 
         # liquidacion_data = [
