@@ -724,7 +724,7 @@ class GenerarPDF(APIView):
                 start_row = end_row
                 page_num += 1
 
-            self._draw_footer(p, width, y_pos_after_table - 25)
+            # self._draw_footer(p, width, y_pos_after_table - 25)
             
             p.save()
             buffer.seek(0)
