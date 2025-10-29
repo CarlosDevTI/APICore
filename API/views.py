@@ -157,13 +157,13 @@ class GenerarPDF(APIView):
         if not s:
             return Decimal(0)
 
-        # Si tiene ambos separadores, asume . = miles, , = decimal (formato latam)
+        # Si tiene ambos separadores, asume . = miles, , = decimal (formato PESOS)
         if '.' in s and ',' in s:
             s = s.replace('.', '').replace(',', '.')
         else:
-            # Si sólo tiene ',', asúmela como decimal
+            # Si sólo tiene ',', aseume que es decimal
             if ',' in s:
-                s = s.replace('.', '')  # por si acaso vinieran puntos de miles mezclados
+                s = s.replace('.', '')  # por si vienen puntos de miles mezclados
                 s = s.replace(',', '.')
             else:
                 # Sólo tiene puntos. ¿Es decimal?
@@ -188,7 +188,7 @@ class GenerarPDF(APIView):
         except Exception:
             return str(num_str)
 
-    def _draw_wrapped_text(self, p, x, y, text, max_width=35):
+    def _draw_wrapped_text(self, p, x, y, text, max_width=28):
         """Escribe texto con salto de línea si excede longitud."""
         if not text:
             return y
@@ -226,7 +226,7 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica-Bold", 9.5)
         p.drawString(col_2_label, y, "Nombre:")
         p.setFont("Helvetica", 9.5)
-        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('NOMBRE', 'N/A'), max_width=35)
+        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('NOMBRE', 'N/A'))
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
@@ -238,7 +238,7 @@ class GenerarPDF(APIView):
         p.drawString(col_2_label, y, "Lugar expedición:")
         p.setFont("Helvetica", 9.5)
         # p.drawString(col_2_value, y, flujo_data.get('LUGAREXP', 'N/A'))
-        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('LUGAREXP', ''), max_width=35) #! SE UTILIZA UNA FUNCIÓN PARA HACER WRAP
+        y = self._draw_wrapped_text(p, col_2_value, y, flujo_data.get('LUGAREXP', '')) #! SE UTILIZA UNA FUNCIÓN PARA HACER WRAP
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
