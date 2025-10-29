@@ -460,8 +460,8 @@ class GenerarPDF(APIView):
             liquidacion_data = [
                 {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
                 {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': self._format_colombian(flujo_data.get('INTEOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
-                {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': self._format_colombian(flujo_data.get('OBLIOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLIDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLICREDITO', '0'))},
-                {'concepto': 'Obligaciones de cartera financiera que recoge DS', 'obligacion': self._format_colombian(flujo_data.get('OBLI2OBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLI2DEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLI2CREDITO', '0'))},
+                {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': (flujo_data.get('OBLIOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLIDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLICREDITO', '0'))},
+                {'concepto': 'Obligaciones de cartera financiera que recoge DS', 'obligacion': (flujo_data.get('OBLI2OBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLI2DEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLI2CREDITO', '0'))},
                 {'concepto': 'Neto a Girar', 'obligacion': self._format_colombian(flujo_data.get('NETOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(netocredito)}
             ]
         else:
@@ -489,8 +489,9 @@ class GenerarPDF(APIView):
             style = TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                # Concepto y Obligación alinear a la izquierda (texto), Débito/Crédito a la derecha
+                ('ALIGN', (0, 0), (1, -1), 'LEFT'),
+                ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 9.5),
                 ('FONTSIZE', (0, 1), (-1, -1), 9.5),
