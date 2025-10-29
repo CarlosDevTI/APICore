@@ -446,12 +446,18 @@ class GenerarPDF(APIView):
         
         y_pos = y_start - 2
 
-        # Calcular NETOCREDITO como MONTODEBITO - INTECREDITO
+        
+        # Calcular NETOCREDITO como suma de la columna débito
+        obligadebito = self._parse_number(flujo_data.get('OBLIDEBITO', '0'))
+        obliga2debito = self._parse_number(flujo_data.get('OBLI2DEBITO', '0')) 
+        sumaobliga = obligadebito + obliga2debito
+
+        # Calcular NETOCREDITO como resta de la columna crédito
         montodebito = self._parse_number(flujo_data.get('MONTODEBITO', '0'))
         intecredito = self._parse_number(flujo_data.get('INTECREDITO', '0'))
         obligacredito = self._parse_number(flujo_data.get('OBLICREDITO', '0'))
         obliga2credito = self._parse_number(flujo_data.get('OBLI2CREDITO', '0'))
-        netocredito = montodebito - intecredito - obligacredito - obliga2credito
+        netocredito = montodebito + sumaobliga - intecredito - obligacredito - obliga2credito
 
         
         #? VAMOS A GENERAR LA CONDICION PARA MOSTRAR LA OBLIGACION ( CREDITOS QUE SE RECOGEN CON EL CREDITO )
