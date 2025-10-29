@@ -1,3 +1,4 @@
+from django.core.files.base import ContentFile
 from rest_framework.views import APIView
 from django.http import HttpResponse, JsonResponse
 from rest_framework import status
@@ -18,8 +19,16 @@ from reportlab.lib.colors import HexColor
 from itertools import groupby
 from operator import itemgetter
 import textwrap
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from .models import HistorialPDFs
 
 logger = logging.getLogger(__name__)
+
+@login_required
+def historial_pdfs(request):
+    historiales = HistorialPDFs.objects.all()
+    return render(request, 'API/historial.html', {'historiales': historiales})
 
 def _get_oracle_connection():
     """Establecer y retornar la conexión a la base de datos ORACLE."""
@@ -595,11 +604,7 @@ class GenerarPDF(APIView):
         p.drawString(right + 10, y_right, "Descripción")
         y_right -= 12
         p.setFont("Helvetica", 9)
-        reales_val = (
-            flujo_data.get('REALDESCRIPCION')
-            or flujo_data.get('REALDESCRIPCIO')
-            or 'FGA GARANTÍA: SIN DETALLE'
-        )
+        reales_val = flujo_data.get('REALDESCRIPCION', '')or 'SIN GARANTIAS REALES'
         reales_list = [s.strip() for s in reales_val.split(';') if s.strip()] or [reales_val]
         for item in reales_list:
             for line in textwrap.wrap(item, width=wrap_w_col):
@@ -772,9 +777,20 @@ class GenerarPDF(APIView):
             p.save()
             buffer.seek(0)
 
+            file_name = f'{datetime.now().strftime("%b-%Y").upper()}_ID_{cedula}_SOL.pdf'
+
+            # Guardar en el historial
+            historial = HistorialPDFs(
+                obligacion=target_flujo.get('OBLIGACION', 'N/A'),
+                cedula_cliente=cedula
+            )
+            historial.pdf_file.save(file_name, ContentFile(buffer.getvalue()))
+            historial.save()
+
+            buffer.seek(0) # Reset buffer position after saving
+
             response = HttpResponse(buffer, content_type='application/pdf')
-            #? SE DEBE GUARDAR EL ARCHIVO EN EL SIGUIENTE FORMATO SEP-2025_ID_4463676_SOL
-            response['Content-Disposition'] = f'attachment; filename="{datetime.now().strftime("%b-%Y").upper()}_ID_{cedula}_SOL.pdf"'
+            response['Content-Disposition'] = f'attachment; filename="{file_name}"'
             
             return response
 

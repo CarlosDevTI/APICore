@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "5ccbb301-9d4c-4f46-bea7-fee7b062859e",
+      "id": "bddd74ee-5122-4c08-ab3c-9c74fc8217d2",
       "name": "1. Trigger Cada 5 Minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -96,
-        1088
+        784,
+        1104
       ]
     },
     {
@@ -33,27 +33,29 @@
           "timeout": 60000
         }
       },
-      "id": "d69f35d3-9f02-4bc8-a692-4899c2d84ede",
-      "name": "2. Listar Flujos Pendientes",
+      "id": "e2dd048f-69bd-4c4e-a24a-5f4ddb60a013",
+      "name": "2. Listar Flujos Pendientes1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        144,
-        1088
+        1008,
+        1104
       ]
     },
     {
       "parameters": {
         "batchSize": 1,
-        "options": {}
+        "options": {
+          "fieldToSplit": "json"
+        }
       },
-      "id": "d86a1de3-b424-44a3-a184-5ff12fbb1616",
-      "name": "3. Procesar Uno por Uno",
+      "id": "2e23a3df-e328-4cfb-a47a-62af67f7e6ca",
+      "name": "3. Procesar Uno por Uno1",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
       "position": [
-        384,
-        1088
+        1248,
+        1104
       ]
     },
     {
@@ -68,33 +70,34 @@
           "timeout": 120000
         }
       },
-      "id": "32627746-297d-4436-9e81-662f28e5f50c",
-      "name": "4. Generar PDF Individual",
+      "id": "7b90f89d-98b2-4a4d-b5a3-8f60405cbc87",
+      "name": "4. Generar PDF Individual1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        624,
-        1088
+        1488,
+        1104
       ]
     },
     {
       "parameters": {
         "fromEmail": "actualizaciones@congente.co",
         "toEmail": "={{ $json.MAIL }}",
-        "subject": "=Plan de Pagos - {{ $json.NOMBRE }}",
-        "html": "=<div style=\"text-align: center; margin-bottom: 20px;\">\n  <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\" \n       alt=\"Cooperativa Congente\" \n       width=\"160\" \n       style=\"border: none;\">\n</div>\n\n<p>Respetad@ señor@ <strong>{{ $json.NOMBRE }}</strong>,</p>\n\n<p>\nLa <strong>Cooperativa de Ahorro y Crédito Congente</strong> se complace en informarle que se ha realizado el desembolso correspondiente a su crédito.\n</p>\n\n<p>\nAdjunto a este mensaje encontrará el documento correspondiente a la formalización de su crédito. Le agradecemos su atención y la confianza depositada en nuestra entidad.\n</p>\n\n<p>\nCordialmente,<br>\n<strong>Cooperativa de Ahorro y Crédito Congente</strong><br>\nÁrea de Crédito\n</p>\n",
+        "subject": "=Congente le informa que su crédito ha sido desembolsado 🧡",
+        "html": "=<div style=\"text-align: center; margin-bottom: 25px;\">\n  <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\"\n       alt=\"Cooperativa Congente\"\n       width=\"180\"\n       style=\"border: none;\">\n</div>\n\n<div style=\"max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; text-align: center; color: #333;\">\n  <p>Estimad@ <strong>{{ $json.NOMBRE }}</strong>,</p>\n\n  <p>\n    La <strong>Cooperativa de Ahorro y Crédito Congente</strong> se complace en informarle\n    que se ha realizado exitosamente el <strong>desembolso correspondiente a su crédito</strong> 🤗.\n  </p>\n\n  <p>\n    Adjuntamos a este mensaje el documento oficial de formalización de su crédito.\n    Le agradecemos su atención y la confianza depositada en nuestra cooperativa.\n  </p>\n\n  <p style=\"margin-top: 25px;\">\n    Solidariamente,<br>\n    <strong>Cooperativa de Ahorro y Crédito Congente</strong><br>\n🧡\n  </p>\n\n  <hr style=\"margin: 30px 0; border: none; border-top: 1px solid #ccc;\">\n\n  <p style=\"font-size: 12px; color: #777;\">\n    ⚙️ <em>Mensaje generado automáticamente por el sistema. Por favor, no responda a este correo.</em><br>\n    Si requiere asistencia adicional, comuníquese con nosotros a través de nuestros canales oficiales:\n    <a href=\"https://congente.coop/contacto\" style=\"color: #0b5394; text-decoration: none;\">www.congente.coop</a>\n  </p>\n</div>\n",
         "options": {
           "appendAttribution": false,
-          "attachments": "=data"
+          "attachments": "=data",
+          "bccEmail": "coordinador.garantias@congente.coop"
         }
       },
-      "id": "7f91f938-dddc-4455-b359-fa8eb63cbc07",
-      "name": "5. Enviar Email Individual",
+      "id": "6c8d8243-e62f-49f6-bf6d-fba662a74f65",
+      "name": "5. Enviar Email Individual1",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        864,
-        1088
+        1696,
+        1104
       ],
       "webhookId": "1cfa20b7-b554-41e3-b4b6-245478a0509f",
       "credentials": {
@@ -111,40 +114,40 @@
       "main": [
         [
           {
-            "node": "2. Listar Flujos Pendientes",
+            "node": "2. Listar Flujos Pendientes1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "2. Listar Flujos Pendientes": {
+    "2. Listar Flujos Pendientes1": {
       "main": [
         [
           {
-            "node": "3. Procesar Uno por Uno",
+            "node": "3. Procesar Uno por Uno1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "3. Procesar Uno por Uno": {
+    "3. Procesar Uno por Uno1": {
       "main": [
         [
           {
-            "node": "4. Generar PDF Individual",
+            "node": "4. Generar PDF Individual1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "4. Generar PDF Individual": {
+    "4. Generar PDF Individual1": {
       "main": [
         [
           {
-            "node": "5. Enviar Email Individual",
+            "node": "5. Enviar Email Individual1",
             "type": "main",
             "index": 0
           }
@@ -156,7 +159,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "ce7093ce-f936-4234-9522-0932e3cd96f6",
+  "versionId": "67ac09d1-3c39-4064-b652-42e3f0d690fd",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "cf22348bf442d0414994b184c25893f3f3c0989623f85bd8feb8ed5035be0cc0"

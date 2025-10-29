@@ -19,3 +19,7 @@ __pycache__/
 
 #? Archivos de variabels de entorno
 .env
+
+#? Archivos estaticos y media
+staticfiles/
+media/
