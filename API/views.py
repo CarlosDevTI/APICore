@@ -471,6 +471,8 @@ class GenerarPDF(APIView):
         
         #? VAMOS A GENERAR LA CONDICION PARA MOSTRAR LA OBLIGACION ( CREDITOS QUE SE RECOGEN CON EL CREDITO )
         #? SI RECOGE = 1 ( SI RECOGE OBLIGACIONES ), SI ES 0 NO RECOGE OBLIGACIONES
+        #? Imprimir/registrar el valor de RECOGE para debugging
+        logger.info(f"RECOGE value: {flujo_data.get('RECOGE', '0')} | CEDULA: {flujo_data.get('CEDULA', '')}")
         if str(flujo_data.get('RECOGE', '0')) == '1':
             liquidacion_data = [
                 {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
