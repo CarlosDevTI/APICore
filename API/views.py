@@ -36,7 +36,7 @@ def _get_oracle_connection():
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
 
-def _filtrar_flujos(cedula=None):
+def _filtrar_flujos(cedula=None, parametro=None):
     """
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
     Si se proporciona una cédula, filtra los resultados para esa cédula.
@@ -44,10 +44,17 @@ def _filtrar_flujos(cedula=None):
     now = datetime.now()
     fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
     
+
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
             ref_cursor_out = cursor.var(oracledb.CURSOR)
-            parametros_completos = [fecha_actual, ref_cursor_out]
+            # Si se recibe 'parametro', lo insertamos en la lista de parámetros
+            # para que el stored procedure pueda diferenciar el modo (1 o 2).
+            if parametro is not None:
+                parametros_completos = [fecha_actual, parametro, ref_cursor_out]
+            else:
+                parametros_completos = [fecha_actual, ref_cursor_out]
+            logger.info(f"Llamando SP_PLANPAGOS con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS', parametros_completos)
             cur = ref_cursor_out.getvalue()
 
@@ -134,7 +141,7 @@ class ListarFlujosPendientes(APIView):
     )
     def get(self, request):
         try:
-            all_flows = _filtrar_flujos()
+            all_flows = _filtrar_flujos(parametro=1)
             all_flows = [flow for flow in all_flows if flow.get("MAIL") and flow.get("MAIL") != "no-email@example.com"]
             summary_list = [
                 {
@@ -723,7 +730,8 @@ class GenerarPDF(APIView):
 
     def get(self, request, cedula):
         try:
-            flujos_filtrados = _filtrar_flujos(cedula=cedula)
+            # Llamar al SP indicando parametro=2 para diferenciar el modo en Oracle
+            flujos_filtrados = _filtrar_flujos(cedula=cedula, parametro=2)
             
             if not flujos_filtrados:
                 return JsonResponse({"error": "Flujo no encontrado para la cédula proporcionada"}, status=status.HTTP_404_NOT_FOUND)
