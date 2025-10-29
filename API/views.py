@@ -648,24 +648,24 @@ class GenerarPDF(APIView):
         
         return y_pos - h - 20
 
-    def _draw_footer(self, p, width, y_position):
-        if y_position < 100:
-            p.showPage()
-            y_position = 750
+    # def _draw_footer(self, p, width, y_position):
+    #     if y_position < 100:
+    #         p.showPage()
+    #         y_position = 750
         
-        p.setFillColor(HexColor('#d9d9d9'))
-        p.rect(40, y_position, width - 70, 22, fill=1, stroke=0)
-        p.setFillColor(HexColor('#000000'))
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y_position + 7, "Firmas")
+    #     p.setFillColor(HexColor('#d9d9d9'))
+    #     p.rect(40, y_position, width - 70, 22, fill=1, stroke=0)
+    #     p.setFillColor(HexColor('#000000'))
+    #     p.setFont("Helvetica-Bold", 10)
+    #     p.drawString(50, y_position + 7, "Firmas")
         
-        y = y_position - 40
-        p.setFont("Helvetica-Bold", 9.5)
-        p.line(50, y, 250, y)
-        p.drawString(50, y - 12, "Nombre del deudor")
+    #     y = y_position - 40
+    #     p.setFont("Helvetica-Bold", 9.5)
+    #     p.line(50, y, 250, y)
+    #     p.drawString(50, y - 12, "Nombre del deudor")
         
-        p.line(350, y, 550, y)
-        p.drawString(350, y - 12, "Firma")
+    #     p.line(350, y, 550, y)
+    #     p.drawString(350, y - 12, "Firma")
 
     def _draw_page_number(self, p, width, height, page_num):
         p.setFont("Helvetica", 9.5)
