@@ -451,41 +451,75 @@ class GenerarPDF(APIView):
         intecredito = self._parse_number(flujo_data.get('INTECREDITO', '0'))
         netocredito = montodebito - intecredito
 
-        liquidacion_data = [
+        
+        #? VAMOS A GENERAR LA CONDICION PARA MOSTRAR LA OBLIGACION ( CREDITOS QUE SE RECOGEN CON EL CREDITO )
+        #? SI RECOGE = 1 ( SI RECOGE OBLIGACIONES ), SI ES 0 NO RECOGE OBLIGACIONES
+        if str(flujo_data.get('RECOGE', '0')) == '1':
+            liquidacion_data = [
+                {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
+                {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': self._format_colombian(flujo_data.get('INTEOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
+                {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': self._format_colombian(flujo_data.get('OBLIOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLIDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLICREDITO', '0'))},
+                {'concepto': 'Obligaciones de cartera financiera que recoge DS', 'obligacion': self._format_colombian(flujo_data.get('OBLI2OBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLI2DEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLI2CREDITO', '0'))},
+                {'concepto': 'Neto a Girar', 'obligacion': self._format_colombian(flujo_data.get('NETOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(netocredito)}
+            ]
+        else:
+            liquidacion_data = [
             {'concepto': 'Monto', 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
             {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
             {'concepto': 'Neto a Girar', 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(netocredito)}
         ]
 
-        # liquidacion_data = [
-        #     {'concepto': 'Monto', 'obligacion': self._format_colombian(flujo_data.get('MONTOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('MONTODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('MONTOCREDITO', '0'))},
-        #     {'concepto': 'Intereses Anticipados de Ajuste al ciclo', 'obligacion': self._format_colombian(flujo_data.get('INTEOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('INTEDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('INTECREDITO', '0'))},
-        #     {'concepto': 'Obligaciones de cartera financiera que recoge', 'obligacion': self._format_colombian(flujo_data.get('OBLIOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLIDEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLICREDITO', '0'))},
-        #     {'concepto': 'Obligaciones 2', 'obligacion': self._format_colombian(flujo_data.get('OBLI2OBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('OBLI2DEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('OBLI2CREDITO', '0'))},
-        #     {'concepto': 'Neto a Girar', 'obligacion': self._format_colombian(flujo_data.get('NETOOBLIGA', '0')), 'debito': self._format_colombian(flujo_data.get('NETODEBITO', '0')), 'credito': self._format_colombian(flujo_data.get('NETOCREDITO', '0'))}
-        # ]
-        
-        table_data = [['Concepto', 'Débito', 'Crédito']]
-        
-        for item in liquidacion_data:
-            table_data.append([item.get('concepto', ''), item.get('debito', ''), item.get('credito', '')])
-        
-        table = Table(table_data, colWidths=[380, 80, 80])
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9.5),
-            ('FONTSIZE', (0, 1), (-1, -1), 9.5),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 1), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
+        # Construir la tabla: si los elementos contienen 'obligacion' mostramos
+        # la columna adicional y ajustamos los anchos y alineaciones.
+        if any('obligacion' in item for item in liquidacion_data):
+            table_data = [['Concepto', 'Obligación', 'Débito', 'Crédito']]
+            for item in liquidacion_data:
+                table_data.append([
+                    item.get('concepto', ''),
+                    item.get('obligacion', ''),
+                    item.get('debito', ''),
+                    item.get('credito', ''),
+                ])
+            # Anchos: Concepto más amplio, Obligación intermedia, luego Débito/Crédito
+            col_widths = [280, 100, 80, 80]
+            table = Table(table_data, colWidths=col_widths)
+
+            style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9.5),
+                ('FONTSIZE', (0, 1), (-1, -1), 9.5),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 1), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ])
+            table.setStyle(style)
+        else:
+            table_data = [['Concepto', 'Débito', 'Crédito']]
+            for item in liquidacion_data:
+                table_data.append([item.get('concepto', ''), item.get('debito', ''), item.get('credito', '')])
+
+            table = Table(table_data, colWidths=[380, 80, 80])
+            style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#d9d9d9')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9.5),
+                ('FONTSIZE', (0, 1), (-1, -1), 9.5),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 1), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ])
+            table.setStyle(style)
         
         w, h = table.wrapOn(p, width - 80, y_pos)
         table.drawOn(p, 40, y_pos - h)
