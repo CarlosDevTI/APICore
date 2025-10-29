@@ -730,7 +730,9 @@ class GenerarPDF(APIView):
             buffer.seek(0)
 
             response = HttpResponse(buffer, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="plan_de_pagos__{datetime.now().strftime("%Y%m%d")}.pdf"'
+            #? SE DEBE GUARDAR EL ARCHIVO EN EL SIGUIENTE FORMATO SEP-2025_ID_4463676_SOL
+            response['Content-Disposition'] = f'attachment; filename="{datetime.now().strftime("%b-%Y").upper()}_ID_{cedula}_SOL.pdf"'
+            
             return response
 
         except Exception as e:
