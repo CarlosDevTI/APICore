@@ -71,7 +71,7 @@ def _filtrar_flujos(cedula=None):
                 fechas = str(row.get('FECHA', '')).split(';')
                 abonos_capital = str(row.get('ABONO_CAPITAL', '')).split(';')
                 abonos_interes = str(row.get('ABONO_INTERES', '')).split(';')
-                # seguros_vida = str(row.get('SEGURO_VIDA', '')).split(';') EL CAMPO SEGUROS DE VIDA NO EXISTE PORQUE VA INMERSO EN OTROS CONCEPTOS
+                seguro_vida = str(row.get('SEGURO_VIDA', '')).split(';') #? EL CAMPO SEGUROS DE VIDA NO EXISTE EN DATOS DE OBLIGACION PERO SI EN CICLO DE PAGO
                 otros_conceptos = str(row.get('OTROS_CONCEPTOS', '')).split(';')
                 capitalizaciones = str(row.get('CAPITALIZACION', '')).split(';')
                 valores_cuota = str(row.get('VALOR_CUOTA', '')).split(';')
@@ -85,6 +85,7 @@ def _filtrar_flujos(cedula=None):
                         'FECHA': (fechas[i] if i < len(fechas) else '').strip(),
                         'ABONO_CAPITAL': (abonos_capital[i] if i < len(abonos_capital) else '').strip(),
                         'ABONO_INTERES': (abonos_interes[i] if i < len(abonos_interes) else '').strip(),
+                        'SEGURO_VIDA': (seguro_vida[i] if i < len(seguro_vida) else '').strip(),
                         'OTROS_CONCEPTOS': (otros_conceptos[i] if i < len(otros_conceptos) else '').strip(),
                         'CAPITALIZACION': (capitalizaciones[i] if i < len(capitalizaciones) else '').strip(),
                         'VALOR_CUOTA': (valores_cuota[i] if i < len(valores_cuota) else '').strip(),
