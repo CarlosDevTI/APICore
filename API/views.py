@@ -127,7 +127,7 @@ def _obtener_datos_basicos():
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
             ref_cursor_out = cursor.var(oracledb.CURSOR)
-            parametros_completos = [fecha_actual, 1, ref_cursor_out]
+            parametros_completos = [fecha_actual, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOS1 con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS1', parametros_completos)
             cur = ref_cursor_out.getvalue()
