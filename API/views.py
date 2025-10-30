@@ -20,6 +20,7 @@ from itertools import groupby
 from operator import itemgetter
 import textwrap
 from django.shortcuts import render
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from .models import HistorialPDFs
 
@@ -27,8 +28,21 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def historial_pdfs(request):
-    historiales = HistorialPDFs.objects.all()
-    return render(request, 'API/historial.html', {'historiales': historiales})
+    query = (request.GET.get('q') or '').strip()
+    historiales = []
+    not_found = False
+
+    if query:
+        # Búsqueda exacta por obligación o cédula
+        resultado = HistorialPDFs.objects.filter(Q(obligacion=query) | Q(cedula_cliente=query)).order_by('-fecha_creacion')
+        historiales = list(resultado)
+        not_found = len(historiales) == 0
+
+    return render(request, 'API/historial.html', {
+        'historiales': historiales,
+        'query': query,
+        'not_found': not_found,
+    })
 
 def _get_oracle_connection():
     """Establecer y retornar la conexión a la base de datos ORACLE."""

@@ -200,6 +200,22 @@
                 <h2 class="card-title">Historial de Planes de Pago</h2>
             </div>
             
+            <div class="px-4 py-3">
+                <form method="get" action="{% url 'historial_pdfs' %}" class="form-inline">
+                    <div class="form-group mb-2 mr-2" style="flex:1; min-width: 280px;">
+                        <input type="text" name="q" class="form-control w-100" placeholder="Buscar por Obligación o Cédula (coincidencia exacta)" value="{{ query|default:'' }}" />
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </form>
+                {% if not_found %}
+                <div class="alert alert-warning mt-2 mb-0" role="alert">
+                    No existe un plan de pagos para el valor ingresado.
+                </div>
+                {% endif %}
+            </div>
+            
             <div class="table-container">
                 <div class="table-responsive">
                     <table class="custom-table">
@@ -212,24 +228,30 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for historial in historiales %}
-                            <tr>
-                                <td><span class="obligacion-text">{{ historial.obligacion }}</span></td>
-                                <td>{{ historial.cedula_cliente }}</td>
-                                <td>{{ historial.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
-                                <td>
-                                    <a href="{{ historial.pdf_file.url }}" class="btn-ver-pdf" target="_blank">
-                                        <i class="fas fa-download"></i> Ver PDF
-                                    </a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted" style="padding: 30px;">
-                                    No hay historiales registrados aún.
-                                </td>
-                            </tr>
-                            {% endfor %}
+                            {% if historiales %}
+                                {% for historial in historiales %}
+                                <tr>
+                                    <td><span class="obligacion-text">{{ historial.obligacion }}</span></td>
+                                    <td>{{ historial.cedula_cliente }}</td>
+                                    <td>{{ historial.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
+                                    <td>
+                                        <a href="{{ historial.pdf_file.url }}" class="btn-ver-pdf" target="_blank">
+                                            <i class="fas fa-download"></i> Ver PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted" style="padding: 30px;">
+                                        {% if query %}
+                                            No existe un plan de pagos para la búsqueda realizada.
+                                        {% else %}
+                                            Ingrese una obligación o cédula para iniciar la búsqueda.
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
