@@ -759,7 +759,7 @@ class GenerarPDF(APIView):
     def get(self, request, cedula):
         try:
             # Llamar al SP indicando parametro=2 para diferenciar el modo en Oracle
-            flujos_filtrados = _filtrar_flujos(cedula=cedula, parametro=2)
+            flujos_filtrados = _filtrar_flujos(cedula=cedula)
             
             if not flujos_filtrados:
                 return JsonResponse({"error": "Flujo no encontrado para la cédula proporcionada"}, status=status.HTTP_404_NOT_FOUND)
