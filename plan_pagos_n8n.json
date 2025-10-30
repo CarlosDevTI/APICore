@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Plan de Pagos",
   "nodes": [
     {
@@ -67,8 +67,8 @@
       "parameters": {
         "fromEmail": "actualizaciones@congente.co",
         "toEmail": "={{ $json.MAIL }}",
-        "subject": "=Congente le informa que su crédito ha sido desembolsado 🧡",
-        "html": "=<div style=\"text-align: center; margin-bottom: 25px;\">\n  <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\"\n       alt=\"Cooperativa Congente\"\n       width=\"180\"\n       style=\"border: none;\">\n</div>\n\n<div style=\"max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; text-align: center; color: #333;\">\n  <p>Estimad@ <strong>{{ $json.NOMBRE }}</strong>,</p>\n\n  <p>\n    La <strong>Cooperativa de Ahorro y Crédito Congente</strong> se complace en informarle\n    que se ha realizado exitosamente el <strong>desembolso correspondiente a su crédito</strong> 🤗.\n  </p>\n\n  <p>\n    Adjuntamos a este mensaje el documento oficial de formalización de su crédito.\n    Le agradecemos su atención y la confianza depositada en nuestra cooperativa.\n  </p>\n\n  <p style=\"margin-top: 25px;\">\n    Solidariamente,<br>\n    <strong>Cooperativa de Ahorro y Crédito Congente</strong><br>\n🧡\n  </p>\n\n  <hr style=\"margin: 30px 0; border: none; border-top: 1px solid #ccc;\">\n\n  <p style=\"font-size: 12px; color: #777;\">\n    ⚙️ <em>Mensaje generado automáticamente por el sistema. Por favor, no responda a este correo.</em><br>\n    Si requiere asistencia adicional, comuníquese con nosotros a través de nuestros canales oficiales:\n    <a href=\"https://congente.coop/contacto\" style=\"color: #0b5394; text-decoration: none;\">www.congente.coop</a>\n  </p>\n</div>\n",
+        "subject": "=Congente le informa que su crÃ©dito ha sido desembolsado ðŸ§¡",
+        "html": "=<div style=\"text-align: center; margin-bottom: 25px;\">\n  <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\"\n       alt=\"Cooperativa Congente\"\n       width=\"180\"\n       style=\"border: none;\">\n</div>\n\n<div style=\"max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; text-align: center; color: #333;\">\n  <p>Estimad@ <strong>{{ $json.NOMBRE }}</strong>,</p>\n\n  <p>\n    La <strong>Cooperativa de Ahorro y CrÃ©dito Congente</strong> se complace en informarle\n    que se ha realizado exitosamente el <strong>desembolso correspondiente a su crÃ©dito</strong> ðŸ¤—.\n  </p>\n\n  <p>\n    Adjuntamos a este mensaje el documento oficial de formalizaciÃ³n de su crÃ©dito.\n    Le agradecemos su atenciÃ³n y la confianza depositada en nuestra cooperativa.\n  </p>\n\n  <p style=\"margin-top: 25px;\">\n    Solidariamente,<br>\n    <strong>Cooperativa de Ahorro y CrÃ©dito Congente</strong><br>\nðŸ§¡\n  </p>\n\n  <hr style=\"margin: 30px 0; border: none; border-top: 1px solid #ccc;\">\n\n  <p style=\"font-size: 12px; color: #777;\">\n    âš™ï¸ <em>Mensaje generado automÃ¡ticamente por el sistema. Por favor, no responda a este correo.</em><br>\n    Si requiere asistencia adicional, comunÃ­quese con nosotros a travÃ©s de nuestros canales oficiales:\n    <a href=\"https://congente.coop/contacto\" style=\"color: #0b5394; text-decoration: none;\">www.congente.coop</a>\n  </p>\n</div>\n",
         "options": {
           "appendAttribution": false,
           "attachments": "=data",
@@ -90,40 +90,6 @@
           "name": "SMTP account"
         }
       }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "8dcc3d24-2652-449a-b8e7-5cc78bd54898",
-              "leftValue": "={{ Array.isArray($json) ? $json[0] : $json }}",
-              "rightValue": "NADA",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1776,
-        1152
-      ],
-      "id": "667a48f6-2250-44fc-9097-9292e9b6608a",
-      "name": "If"
     }
   ],
   "pinData": {},
@@ -143,7 +109,7 @@
       "main": [
         [
           {
-            "node": "If",
+            "node": "4. Generar PDF Individual",
             "type": "main",
             "index": 0
           }
@@ -155,18 +121,6 @@
         [
           {
             "node": "5. Enviar Email Individual",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If": {
-      "main": [
-        [],
-        [
-          {
-            "node": "4. Generar PDF Individual",
             "type": "main",
             "index": 0
           }

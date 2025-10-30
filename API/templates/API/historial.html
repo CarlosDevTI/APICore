@@ -223,6 +223,12 @@
                                     </a>
                                 </td>
                             </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted" style="padding: 30px;">
+                                    No hay historiales registrados aún.
+                                </td>
+                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
