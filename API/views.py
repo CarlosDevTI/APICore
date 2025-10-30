@@ -73,6 +73,10 @@ def _filtrar_flujos(cedula=None):
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
+            try:
+                cur.close()
+            except Exception:
+                pass
             # print(all_rows) Impresiones de seguimiento (DESCOMENTAR SI LAS QUIERE VER SOCIO - SAPO)
             
             for row in all_rows:
@@ -81,7 +85,7 @@ def _filtrar_flujos(cedula=None):
                         row[key] = ''
 
             if cedula:
-                all_rows = [row for row in all_rows if str(row.get('CEDULA', '')) == str(cedula)]
+                all_rows = [row for row in all_rows if str(row.get('CEDULA', '')).strip() == str(cedula).strip()]
 
             if not all_rows:
                 return []
@@ -151,6 +155,10 @@ def _obtener_datos_basicos():
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
+            try:
+                cur.close()
+            except Exception:
+                pass
             
             for row in all_rows:
                 for key, value in row.items():
