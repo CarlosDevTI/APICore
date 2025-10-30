@@ -170,7 +170,13 @@ class ListarFlujosPendientes(APIView):
     def get(self, request):
         try:
             all_flows = _obtener_datos_basicos()
-            all_flows = [flow for flow in all_flows if flow.get("MAIL") and flow.get("MAIL") != "no-email@example.com"]
+            # Filtrar solo registros con MAIL válido y CEDULA no vacía
+            all_flows = [
+                flow for flow in all_flows
+                if flow.get("MAIL")
+                and flow.get("MAIL") != "no-email@example.com"
+                and str(flow.get("CEDULA", "")).strip()
+            ]
             summary_list = [
                 {
                     "CEDULA": flow.get("CEDULA"),
