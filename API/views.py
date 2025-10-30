@@ -818,12 +818,16 @@ class GenerarPDF(APIView):
             file_name = f'{datetime.now().strftime("%b-%Y").upper()}_ID_{cedula}_SOL.pdf'
 
             # Guardar en el historial
-            historial = HistorialPDFs(
-                obligacion=target_flujo.get('OBLIGACION', 'N/A'),
-                cedula_cliente=cedula
-            )
-            historial.pdf_file.save(file_name, ContentFile(buffer.getvalue()))
-            historial.save()
+            obligacion_value = target_flujo.get('OBLIGACION', 'N/A')
+            if HistorialPDFs.objects.filter(obligacion=obligacion_value).exists():
+                logger.warning(f"PDF para la obligación {obligacion_value} ya existe en el historial. Saltando guardado.")
+            else:
+                historial = HistorialPDFs(
+                    obligacion=obligacion_value,
+                    cedula_cliente=cedula
+                )
+                historial.pdf_file.save(file_name, ContentFile(buffer.getvalue()))
+                historial.save()
 
             buffer.seek(0) # Reset buffer position after saving
 
