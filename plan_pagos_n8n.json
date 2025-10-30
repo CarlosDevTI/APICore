@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "bddd74ee-5122-4c08-ab3c-9c74fc8217d2",
-      "name": "1. Trigger Cada 5 Minutos",
+      "id": "d043b74f-6804-4b09-9411-b93dc68574d5",
+      "name": "1. Trigger Cada 5 Minutos1",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        784,
-        1104
+        1392,
+        1248
       ]
     },
     {
@@ -33,29 +33,13 @@
           "timeout": 60000
         }
       },
-      "id": "e2dd048f-69bd-4c4e-a24a-5f4ddb60a013",
-      "name": "2. Listar Flujos Pendientes1",
+      "id": "49db2773-1749-4a78-80d0-396445bc31c4",
+      "name": "2. Listar Flujos Pendientes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1008,
-        1104
-      ]
-    },
-    {
-      "parameters": {
-        "batchSize": 1,
-        "options": {
-          "fieldToSplit": "json"
-        }
-      },
-      "id": "2e23a3df-e328-4cfb-a47a-62af67f7e6ca",
-      "name": "3. Procesar Uno por Uno1",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 2,
-      "position": [
-        1248,
-        1104
+        1616,
+        1248
       ]
     },
     {
@@ -70,13 +54,13 @@
           "timeout": 120000
         }
       },
-      "id": "7b90f89d-98b2-4a4d-b5a3-8f60405cbc87",
-      "name": "4. Generar PDF Individual1",
+      "id": "d7790f5b-1f8a-444b-b365-9f9a3ea6cf00",
+      "name": "4. Generar PDF Individual",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1488,
-        1104
+        1936,
+        1248
       ]
     },
     {
@@ -91,13 +75,13 @@
           "bccEmail": "coordinador.garantias@congente.coop"
         }
       },
-      "id": "6c8d8243-e62f-49f6-bf6d-fba662a74f65",
-      "name": "5. Enviar Email Individual1",
+      "id": "96d504b7-0bd2-4d65-82bd-0d8b9e2a1abc",
+      "name": "5. Enviar Email Individual",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1696,
-        1104
+        2112,
+        1248
       ],
       "webhookId": "1cfa20b7-b554-41e3-b4b6-245478a0509f",
       "credentials": {
@@ -106,48 +90,83 @@
           "name": "SMTP account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8dcc3d24-2652-449a-b8e7-5cc78bd54898",
+              "leftValue": "={{ Array.isArray($json) ? $json[0] : $json }}",
+              "rightValue": "NADA",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1776,
+        1152
+      ],
+      "id": "667a48f6-2250-44fc-9097-9292e9b6608a",
+      "name": "If"
     }
   ],
   "pinData": {},
   "connections": {
-    "1. Trigger Cada 5 Minutos": {
+    "1. Trigger Cada 5 Minutos1": {
       "main": [
         [
           {
-            "node": "2. Listar Flujos Pendientes1",
+            "node": "2. Listar Flujos Pendientes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "2. Listar Flujos Pendientes1": {
+    "2. Listar Flujos Pendientes": {
       "main": [
         [
           {
-            "node": "3. Procesar Uno por Uno1",
+            "node": "If",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "3. Procesar Uno por Uno1": {
+    "4. Generar PDF Individual": {
       "main": [
         [
           {
-            "node": "4. Generar PDF Individual1",
+            "node": "5. Enviar Email Individual",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "4. Generar PDF Individual1": {
+    "If": {
       "main": [
+        [],
         [
           {
-            "node": "5. Enviar Email Individual1",
+            "node": "4. Generar PDF Individual",
             "type": "main",
             "index": 0
           }
@@ -159,7 +178,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "67ac09d1-3c39-4064-b652-42e3f0d690fd",
+  "versionId": "115ca65d-a0cc-4439-9603-89f46b247aec",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "cf22348bf442d0414994b184c25893f3f3c0989623f85bd8feb8ed5035be0cc0"

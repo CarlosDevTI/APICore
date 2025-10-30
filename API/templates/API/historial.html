@@ -216,7 +216,7 @@
                             <tr>
                                 <td><span class="obligacion-text">{{ historial.obligacion }}</span></td>
                                 <td>{{ historial.cedula_cliente }}</td>
-                                <td>{{ historial.fecha_creacion|date:"d de F de Y" }}</td>
+                                <td>{{ historial.fecha_creacion|date:"d/m/Y H:i:s" }}</td>
                                 <td>
                                     <a href="{{ historial.pdf_file.url }}" class="btn-ver-pdf" target="_blank">
                                         <i class="fas fa-download"></i> Ver PDF

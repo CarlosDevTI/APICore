@@ -179,6 +179,9 @@ class ListarFlujosPendientes(APIView):
                 }
                 for flow in all_flows
             ]
+            # Si no hay flujos, devolver ["NADA"] para que n8n pueda detectar y omitir el procesamiento
+            if not summary_list:
+                return JsonResponse(["NADA"], safe=False, status=status.HTTP_200_OK)
             return JsonResponse(summary_list, safe=False, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error en la función ListarFlujosPendientes: {e}", exc_info=True)
