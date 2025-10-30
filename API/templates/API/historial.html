@@ -185,7 +185,11 @@
             <div class="logo-box">
                 <img src="{% static 'img/Logo.png' %}" alt="Logo" style="width: 40px;">
             </div>
-            <h1 class="brand-name">Congente</h1>
+        </div>
+        <div class="ml-auto">
+            <a href="{% url 'logout' %}" class="btn btn-outline-danger">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </a>
         </div>
     </div>
     
