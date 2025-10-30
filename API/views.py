@@ -36,7 +36,7 @@ def _get_oracle_connection():
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
 
-def _filtrar_flujos(cedula=None, parametro=None):
+def _filtrar_flujos(cedula=None, parametro=None, process_plan_pago=True):
     """
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
     Si se proporciona una cédula, filtra los resultados para esa cédula.
@@ -79,6 +79,9 @@ def _filtrar_flujos(cedula=None, parametro=None):
             for row in all_rows:
                 if 'MAIL' not in row or not row['MAIL']:
                     row['MAIL'] = 'no-email@example.com'
+
+            if not process_plan_pago:
+                return all_rows
 
             data = []
             for row in all_rows:
@@ -141,7 +144,7 @@ class ListarFlujosPendientes(APIView):
     )
     def get(self, request):
         try:
-            all_flows = _filtrar_flujos(parametro=1)
+            all_flows = _filtrar_flujos(parametro=1, process_plan_pago=False)
             all_flows = [flow for flow in all_flows if flow.get("MAIL") and flow.get("MAIL") != "no-email@example.com"]
             summary_list = [
                 {
