@@ -36,7 +36,7 @@ def _get_oracle_connection():
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
 
-def _filtrar_flujos(cedula=None, parametro=None, process_plan_pago=True):
+def _filtrar_flujos(cedula=None):
     """
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
     Si se proporciona una cédula, filtra los resultados para esa cédula.
@@ -48,12 +48,8 @@ def _filtrar_flujos(cedula=None, parametro=None, process_plan_pago=True):
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
             ref_cursor_out = cursor.var(oracledb.CURSOR)
-            # Si se recibe 'parametro', lo insertamos en la lista de parámetros
-            # para que el stored procedure pueda diferenciar el modo (1 o 2).
-            if parametro is not None:
-                parametros_completos = [fecha_actual, parametro, ref_cursor_out]
-            else:
-                parametros_completos = [fecha_actual, ref_cursor_out]
+
+            parametros_completos = [fecha_actual, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOS con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS', parametros_completos)
             cur = ref_cursor_out.getvalue()
@@ -79,9 +75,6 @@ def _filtrar_flujos(cedula=None, parametro=None, process_plan_pago=True):
             for row in all_rows:
                 if 'MAIL' not in row or not row['MAIL']:
                     row['MAIL'] = 'no-email@example.com'
-
-            if not process_plan_pago:
-                return all_rows
 
             data = []
             for row in all_rows:
@@ -124,6 +117,38 @@ def _filtrar_flujos(cedula=None, parametro=None, process_plan_pago=True):
                 data.append(row)
             return data
 
+def _obtener_datos_basicos():
+    """
+    Llama al procedimiento almacenado SP_PLANPAGOS1 y retorna un resumen de los flujos.
+    """
+    now = datetime.now()
+    fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
+    
+    with _get_oracle_connection() as conn:
+        with conn.cursor() as cursor:
+            ref_cursor_out = cursor.var(oracledb.CURSOR)
+            parametros_completos = [fecha_actual, 1, ref_cursor_out]
+            logger.info(f"Llamando SP_PLANPAGOS1 con parametros: {parametros_completos}")
+            cursor.callproc('SP_PLANPAGOS1', parametros_completos)
+            cur = ref_cursor_out.getvalue()
+
+            if not cur:
+                return []
+
+            cols = [c[0] for c in cur.description]
+            all_rows = [dict(zip(cols, row)) for row in cur]
+            
+            for row in all_rows:
+                for key, value in row.items():
+                    if value is None:
+                        row[key] = ''
+            
+            for row in all_rows:
+                if 'MAIL' not in row or not row['MAIL']:
+                    row['MAIL'] = 'no-email@example.com'
+
+            return all_rows
+
 class ListarFlujosPendientes(APIView):
     @swagger_auto_schema(
         operation_description="""Consulta la base de datos y devuelve una lista JSON de los flujos de planes de pago pendientes.""",
@@ -144,7 +169,7 @@ class ListarFlujosPendientes(APIView):
     )
     def get(self, request):
         try:
-            all_flows = _filtrar_flujos(parametro=1, process_plan_pago=False)
+            all_flows = _obtener_datos_basicos()
             all_flows = [flow for flow in all_flows if flow.get("MAIL") and flow.get("MAIL") != "no-email@example.com"]
             summary_list = [
                 {
