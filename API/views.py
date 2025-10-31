@@ -50,20 +50,21 @@ def _get_oracle_connection():
     dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
     return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
 
-def _filtrar_flujos(cedula=None):
+#? Esta funcion la vamos a dejar para llamar al procedimiento pero con el parametro obligacion y no con la fecha
+def _filtrar_flujos(obligacion=None):
     """
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
-    Si se proporciona una cédula, filtra los resultados para esa cédula.
+    Se debe proporcionar obligación para mostrarlos.
     """
-    now = datetime.now()
-    fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
+    # now = datetime.now()
+    # fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
     
 
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
             ref_cursor_out = cursor.var(oracledb.CURSOR)
-
-            parametros_completos = [fecha_actual, ref_cursor_out]
+            #? Le pasamos la obligacion en vez de la fecha actual
+            parametros_completos = [obligacion, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOS con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS', parametros_completos)
             cur = ref_cursor_out.getvalue()
@@ -73,19 +74,21 @@ def _filtrar_flujos(cedula=None):
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
-            try:
-                cur.close()
-            except Exception:
-                pass
-            # print(all_rows) Impresiones de seguimiento (DESCOMENTAR SI LAS QUIERE VER SOCIO - SAPO)
+
+            #? Ya no es necesario cerrar el cursor porque se usa with
+            # try:
+            #     cur.close()
+            # except Exception:
+            #     pass
+            # print(all_rows) Impresiones de seguimiento (DESCOMENTAR SI LAS QUIERE VER SOCIO - SAPO) 
             
             for row in all_rows:
                 for key, value in row.items():
                     if value is None:
                         row[key] = ''
-
-            if cedula:
-                all_rows = [row for row in all_rows if str(row.get('CEDULA', '')).strip() == str(cedula).strip()]
+            #? Ahora filtramos por obligacion si se proporciona
+            if obligacion:
+                all_rows = [row for row in all_rows if str(row.get('OBLIGACION', '')).strip() == str(obligacion).strip()]
 
             if not all_rows:
                 return []
@@ -137,7 +140,8 @@ def _filtrar_flujos(cedula=None):
 
 def _obtener_datos_basicos():
     """
-    Llama al procedimiento almacenado SP_PLANPAGOS1 y retorna un resumen de los flujos.
+    Llama al procedimiento almacenado SP_PLANPAGOS1 y retorna todo el procedimiento.
+    Pero de aqui solo tomamos lo que nos interesa: CEDULA, NOMBRE, MAIL, OBLIGACION
     """
     now = datetime.now()
     fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
@@ -155,10 +159,6 @@ def _obtener_datos_basicos():
 
             cols = [c[0] for c in cur.description]
             all_rows = [dict(zip(cols, row)) for row in cur]
-            try:
-                cur.close()
-            except Exception:
-                pass
             
             for row in all_rows:
                 for key, value in row.items():
@@ -204,12 +204,13 @@ class ListarFlujosPendientes(APIView):
                     "CEDULA": flow.get("CEDULA"),
                     "NOMBRE": flow.get("NOMBRE"),
                     "MAIL": flow.get("MAIL"),
+                    "OBLIGACION": flow.get("OBLIGACION"),
                 }
                 for flow in all_flows
             ]
             return JsonResponse(summary_list, safe=False, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"Error en la función ListarFlujosPendientes: {e}", exc_info=True)
+            logger.error(f"Error en la funcin ListarFlujosPendientes: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GenerarPDF(APIView):
@@ -461,7 +462,6 @@ class GenerarPDF(APIView):
         p.drawString(col_2_label, y, "Forma de pago:")
         p.setFont("Helvetica", 9.5)
         p.drawString(col_2_value, y, flujo_data.get('FORMAPAGO', ''))
-
 
         y -= line_height
         p.setFont("Helvetica-Bold", 9.5)
@@ -784,19 +784,22 @@ class GenerarPDF(APIView):
         p.setFont("Helvetica", 9.5)
         p.drawRightString(width - 40, 30, f"Página: {page_num}")
 
-    def get(self, request, cedula):
+    def get(self, request, obligacion):
         try:
-            # Llamar al SP indicando parametro=2 para diferenciar el modo en Oracle
-            flujos_filtrados = _filtrar_flujos(cedula=cedula)
+            flujos_filtrados = _filtrar_flujos(obligacion=obligacion)
             
             if not flujos_filtrados:
-                return JsonResponse({"error": "Flujo no encontrado para la cédula proporcionada"}, status=status.HTTP_404_NOT_FOUND)
+                return JsonResponse({"error": "Flujo no encontrado para la obligación proporcionada"}, status=status.HTTP_404_NOT_FOUND)
 
             target_flujo = flujos_filtrados[0]
+            cedula = target_flujo.get('CEDULA')
+
+            if not cedula:
+                return JsonResponse({"error": "No se encontró la cédula para la obligación dada."}, status=status.HTTP_400_BAD_REQUEST)
 
             buffer = io.BytesIO()
 
-            cedula_password = str(target_flujo.get('CEDULA', ''))
+            cedula_password = str(cedula)
             p = canvas.Canvas(buffer, pagesize=letter, encrypt=cedula_password)
             width, height = letter
             
@@ -838,26 +841,22 @@ class GenerarPDF(APIView):
                 start_row = end_row
                 page_num += 1
 
-            # self._draw_footer(p, width, y_pos_after_table - 25)
-            
             p.save()
             buffer.seek(0)
 
             file_name = f'{datetime.now().strftime("%b-%Y").upper()}_ID_{cedula}_SOL.pdf'
 
-            # Guardar en el historial
-            obligacion_value = target_flujo.get('OBLIGACION', 'N/A')
-            if HistorialPDFs.objects.filter(obligacion=obligacion_value).exists():
-                logger.warning(f"PDF para la obligación {obligacion_value} ya existe en el historial. Saltando guardado.")
+            if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
+                logger.warning(f"PDF para la obligación {obligacion} ya existe en el historial. Saltando guardado.")
             else:
                 historial = HistorialPDFs(
-                    obligacion=obligacion_value,
+                    obligacion=obligacion,
                     cedula_cliente=cedula
                 )
                 historial.pdf_file.save(file_name, ContentFile(buffer.getvalue()))
                 historial.save()
 
-            buffer.seek(0) # Reset buffer position after saving
+            buffer.seek(0)
 
             response = HttpResponse(buffer, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="{file_name}"'
@@ -865,5 +864,5 @@ class GenerarPDF(APIView):
             return response
 
         except Exception as e:
-            logger.error(f"Error en GenerarPDF para cedula {cedula}: {e}", exc_info=True)
+            logger.error(f"Error en GenerarPDF para obligación {obligacion}: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
