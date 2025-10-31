@@ -56,15 +56,16 @@ def _filtrar_flujos(obligacion=None):
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
     Se debe proporcionar obligación para mostrarlos.
     """
-    # now = datetime.now()
-    # fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
     
+    obligacion_filtrada = obligacion
+    if obligacion and obligacion.startswith('10-'):
+        obligacion_filtrada = obligacion[3:]
 
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
             ref_cursor_out = cursor.var(oracledb.CURSOR)
             #? Le pasamos la obligacion en vez de la fecha actual
-            parametros_completos = [obligacion, ref_cursor_out]
+            parametros_completos = [obligacion_filtrada, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOS con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS', parametros_completos)
             cur = ref_cursor_out.getvalue()
