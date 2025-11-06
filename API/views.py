@@ -787,7 +787,17 @@ class GenerarPDF(APIView):
         p.drawRightString(width - 40, 30, f"Página: {page_num}")
 
     def get(self, request, obligacion):
+        # Primero, verificar si el PDF para esta obligación ya existe en el historial.
+        if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
+            logger.info(f"La obligación {obligacion} ya tiene un PDF generado. No se generará uno nuevo.")
+            # Si ya existe, devuelve una respuesta JSON para que n8n pueda detener el flujo.
+            return JsonResponse(
+                {"mensaje": f"El PDF para la obligación {obligacion} ya fue generado previamente."},
+                status=status.HTTP_200_OK
+            )
+
         try:
+            # Si no existe, proceder con la lógica de generación de PDF.
             flujos_filtrados = _filtrar_flujos(obligacion=obligacion)
             
             if not flujos_filtrados:
@@ -828,7 +838,6 @@ class GenerarPDF(APIView):
 
             page_num = 2
             start_row = 0
-            y_pos_after_table = 0
             for i in range(num_payment_pages):
                 p.showPage()
                 self._draw_header(p, width, height)
@@ -836,7 +845,7 @@ class GenerarPDF(APIView):
                 
                 end_row = start_row + rows_per_page
                 
-                y_pos_after_table = self._draw_payment_table(p, width, y_pos_page, target_flujo, start_row, end_row)
+                self._draw_payment_table(p, width, y_pos_page, target_flujo, start_row, end_row)
                 
                 self._draw_page_number(p, width, height, page_num)
                 
@@ -848,15 +857,13 @@ class GenerarPDF(APIView):
 
             file_name = f'{datetime.now().strftime("%b-%Y").upper()}_ID_{cedula}_SOL.pdf'
 
-            if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
-                logger.warning(f"PDF para la obligación {obligacion} ya existe en el historial. Saltando guardado.")
-            else:
-                historial = HistorialPDFs(
-                    obligacion=obligacion,
-                    cedula_cliente=cedula
-                )
-                historial.pdf_file.save(file_name, ContentFile(buffer.getvalue()))
-                historial.save()
+            # Guardar el nuevo PDF en el historial (ya no se necesita la comprobación aquí).
+            historial = HistorialPDFs(
+                obligacion=obligacion,
+                cedula_cliente=cedula
+            )
+            historial.pdf_file.save(file_name, ContentFile(buffer.getvalue()))
+            historial.save()
 
             buffer.seek(0)
 
