@@ -23,6 +23,7 @@ from django.shortcuts import render
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from .models import HistorialPDFs
+from .oracle_pool import acquire_connection
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +46,9 @@ def historial_pdfs(request):
     })
 
 def _get_oracle_connection():
-    """Establecer y retornar la conexión a la base de datos ORACLE."""
-    db = settings.DATABASES['oracle']
-    dsn = f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
-    return oracledb.connect(user=db['USER'], password=db['PASSWORD'], dsn=dsn)
+    """Obtiene conexión Oracle desde el pool configurado."""
+    return acquire_connection()
+
 
 #? Esta funcion la vamos a dejar para llamar al procedimiento pero con el parametro obligacion y no con la fecha
 def _filtrar_flujos(obligacion=None):
@@ -69,20 +69,17 @@ def _filtrar_flujos(obligacion=None):
             logger.info(f"Llamando SP_PLANPAGOS con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS', parametros_completos)
             cur = ref_cursor_out.getvalue()
+            try:
+                if not cur:
+                    return []
+                cols = [c[0] for c in cur.description]
+                all_rows = [dict(zip(cols, row)) for row in cur]
+            finally:
+                try:
+                    cur.close() #* CERRAR EL CURSOR
+                except Exception:
+                    pass
 
-            if not cur:
-                return []
-
-            cols = [c[0] for c in cur.description]
-            all_rows = [dict(zip(cols, row)) for row in cur]
-
-            #? Ya no es necesario cerrar el cursor porque se usa with
-            # try:
-            #     cur.close()
-            # except Exception:
-            #     pass
-            # print(all_rows) Impresiones de seguimiento (DESCOMENTAR SI LAS QUIERE VER SOCIO - SAPO) 
-            
             for row in all_rows:
                 for key, value in row.items():
                     if value is None:
@@ -154,12 +151,16 @@ def _obtener_datos_basicos():
             logger.info(f"Llamando SP_PLANPAGOS1 con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS1', parametros_completos)
             cur = ref_cursor_out.getvalue()
-
-            if not cur:
-                return []
-
-            cols = [c[0] for c in cur.description]
-            all_rows = [dict(zip(cols, row)) for row in cur]
+            try:
+                if not cur:
+                    return []
+                cols = [c[0] for c in cur.description]
+                all_rows = [dict(zip(cols, row)) for row in cur]
+            finally:
+                try:
+                    cur.close() #* CERRAR EL CURSOR
+                except Exception:
+                    pass
             
             for row in all_rows:
                 for key, value in row.items():
