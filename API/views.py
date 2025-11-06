@@ -2,8 +2,7 @@ from django.core.files.base import ContentFile
 from rest_framework.views import APIView
 from django.http import HttpResponse, JsonResponse
 from rest_framework import status
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+
 from datetime import datetime
 import logging
 import os
@@ -174,23 +173,7 @@ def _obtener_datos_basicos():
             return all_rows
 
 class ListarFlujosPendientes(APIView):
-    @swagger_auto_schema(
-        operation_description="""Consulta la base de datos y devuelve una lista JSON de los flujos de planes de pago pendientes.""",
-        responses=    {
-            200: openapi.Response('Lista de flujos pendientes.', schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'CEDULA': openapi.Schema(type=openapi.TYPE_STRING),
-                        'NOMBRE': openapi.Schema(type=openapi.TYPE_STRING),
-                        'MAIL': openapi.Schema(type=openapi.TYPE_STRING),
-                    }
-                )
-            )),
-            500: 'Error en la consulta a la base de datos.'
-        }
-    )
+
     def get(self, request):
         try:
             all_flows = _obtener_datos_basicos()
