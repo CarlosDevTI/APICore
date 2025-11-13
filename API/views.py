@@ -62,6 +62,7 @@ def _filtrar_flujos(obligacion=None):
 
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.callTimeout = getattr(settings, "ORACLE_CALL_TIMEOUT_MS", 60000)
             ref_cursor_out = cursor.var(oracledb.CURSOR)
             #? Le pasamos la obligacion en vez de la fecha actual
             parametros_completos = [obligacion_filtrada, ref_cursor_out]
@@ -145,6 +146,7 @@ def _obtener_datos_basicos():
     
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.callTimeout = getattr(settings, "ORACLE_CALL_TIMEOUT_MS", 60000)
             ref_cursor_out = cursor.var(oracledb.CURSOR)
             parametros_completos = [fecha_actual, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOS1 con parametros: {parametros_completos}")
