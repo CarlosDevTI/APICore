@@ -790,12 +790,12 @@ class GenerarPDF(APIView):
         pagare = _obtener_pagare(obligacion)
         # Primero, verificar si el PDF para esta obligación ya existe en el historial.
         if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
-            logger.info(f"La obligación {obligacion} ya tiene un PDF generado. No se generará uno nuevo.")
-            # Si ya existe, devuelve una respuesta JSON para que n8n pueda detener el flujo.
-            return JsonResponse(
-                {"mensaje": f"El PDF para la obligación {obligacion} ya fue generado previamente."},
-                status=status.HTTP_200_OK
+            logger.info(
+                "La obligación %s ya tiene un PDF generado. No se generará uno nuevo.",
+                obligacion,
             )
+            # Devolvemos 204 para que n8n continúe sin enviar correos ni adjuntos.
+            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
 
         try:
             # Si no existe, proceder con la lógica de generación de PDF.
