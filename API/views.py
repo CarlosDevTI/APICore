@@ -23,6 +23,7 @@ from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from .models import HistorialPDFs
 from .oracle_pool import acquire_connection
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,17 @@ def historial_pdfs(request):
         'not_found': not_found,
     })
 
+@contextmanager
 def _get_oracle_connection():
-    """Obtiene conexión Oracle desde el pool configurado."""
-    return acquire_connection()
+    """Obtiene conexión Oracle desde el pool configurado y la libera al finalizar."""
+    conn = acquire_connection()
+    try:
+        yield conn
+    finally:
+        try:
+            conn.close()  # regresa la conexión al pool
+        except Exception:
+            pass
 
 
 #? Esta funcion la vamos a dejar para llamar al procedimiento pero con el parametro obligacion y no con la fecha
@@ -155,7 +164,7 @@ def _obtener_datos_basicos():
                     return []
                 cols = [c[0] for c in cur.description]
                 all_rows = [dict(zip(cols, row)) for row in cur]
-                # print(all_rows)
+                print(all_rows)
             finally:
                 try:
                     cur.close() #* CERRAR EL CURSOR
@@ -200,6 +209,7 @@ class ListarFlujosPendientes(APIView):
                     "PAGARE": flow.get("PAGARE"),
                     "OBLIGACION": flow.get("OBLIGACION"),
                 })
+                # print(summary_list)
             logger.info(
                 "ListarFlujosPendientes obtuvo %s registros y retornó %s",
                 len(all_flows),
