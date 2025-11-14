@@ -168,8 +168,10 @@ def _obtener_datos_basicos():
                         row[key] = ''
             
             for row in all_rows:
-                if 'MAIL' not in row or not row['MAIL']:
-                    row['MAIL'] = 'no-email@example.com'
+                mail_value = (
+                    row.get('MAIL')
+                )
+                row['MAIL'] = mail_value.strip()
 
             return all_rows
 
@@ -178,22 +180,31 @@ class ListarFlujosPendientes(APIView):
     def get(self, request):
         try:
             all_flows = _obtener_datos_basicos()
-            # Filtrar solo registros con MAIL válido y CEDULA no vacía
-            all_flows = [
-                flow for flow in all_flows
-                if flow.get("MAIL")
-                and flow.get("MAIL") != "no-email@example.com"
-                and str(flow.get("CEDULA", "")).strip()
-            ]
-            summary_list = [
-                {
+            summary_list = []
+            for flow in all_flows:
+                cedula = str(flow.get("CEDULA", "")).strip()
+                if not cedula:
+                    continue
+                mail = (
+                    flow.get("MAIL")
+                    or flow.get("EMAIL")
+                    or flow.get("CORREO")
+                    or ""
+                ).strip()
+                if not mail:
+                    mail = "no-email@example.com"
+                summary_list.append({
                     "CEDULA": flow.get("CEDULA"),
                     "NOMBRE": flow.get("NOMBRE"),
-                    "MAIL": flow.get("MAIL"),
+                    "MAIL": mail,
+                    "PAGARE": flow.get("PAGARE"),
                     "OBLIGACION": flow.get("OBLIGACION"),
-                }
-                for flow in all_flows
-            ]
+                })
+            logger.info(
+                "ListarFlujosPendientes obtuvo %s registros y retornó %s",
+                len(all_flows),
+                len(summary_list),
+            )
             return JsonResponse(summary_list, safe=False, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error en la funcin ListarFlujosPendientes: {e}", exc_info=True)
