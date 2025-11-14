@@ -26,6 +26,4 @@ def acquire_connection():
     """Obtiene una conexión del pool lista para usarse."""
     pool = get_pool()
     conn = pool.acquire()
-    call_timeout = getattr(settings, 'ORACLE_CALL_TIMEOUT_MS', 60000)
-    conn.callTimeout = max(0, call_timeout)
     return conn

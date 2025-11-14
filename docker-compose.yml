@@ -16,7 +16,7 @@ services:
     build: .
     env_file:
       - .env
-    command: gunicorn --bind 0.0.0.0:8010 --workers 3 --timeout 600 APICore.wsgi:application
+    command: gunicorn --bind 0.0.0.0:8010 --workers 3 --timeout 120 APICore.wsgi:application
     ports:
       - "8010:8010"
     volumes:
