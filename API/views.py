@@ -157,6 +157,7 @@ def _obtener_datos_basicos():
                     return []
                 cols = [c[0] for c in cur.description]
                 all_rows = [dict(zip(cols, row)) for row in cur]
+                print(all_rows)
             finally:
                 try:
                     cur.close() #* CERRAR EL CURSOR
