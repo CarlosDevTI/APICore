@@ -790,12 +790,16 @@ class GenerarPDF(APIView):
         pagare = _obtener_pagare(obligacion)
         # Primero, verificar si el PDF para esta obligación ya existe en el historial.
         if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
-            logger.info(
-                "La obligación %s ya tiene un PDF generado. No se generará uno nuevo.",
+            logger.warning(
+                "Intento de generar un PDF duplicado para la obligación %s. Proceso detenido.",
                 obligacion,
             )
-            # Devolvemos 204 para que n8n continúe sin enviar correos ni adjuntos.
-            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
+            # Devolvemos 409 Conflict para indicar que el recurso ya existe y detener el workflow.
+            # Un 204 (No Content) es una respuesta de ÉXITO, por lo que el workflow continuaría.
+            return HttpResponse(
+                content=f"CONFLICT: El PDF para la obligación {obligacion} ya existe en la base de datos.",
+                status=status.HTTP_409_CONFLICT,
+            )
 
         try:
             # Si no existe, proceder con la lógica de generación de PDF.

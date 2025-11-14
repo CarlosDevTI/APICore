@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "url": "=http://192.168.15.215:8010/api/generar-pdf/{{ $json.OBLIGACION }}/",
+        "url": "=http://192.168.15.215:8010/api/generar-pdf/{{ $json.PAGARE }}/",
         "options": {
           "response": {
             "response": {
@@ -71,8 +71,7 @@
         "html": "=<div style=\"text-align: center; margin-bottom: 25px;\">\n  <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\"\n       alt=\"Cooperativa Congente\"\n       width=\"180\"\n       style=\"border: none;\">\n</div>\n\n<div style=\"max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; text-align: center; color: #333;\">\n  <p>Estimad@ <strong>{{ $json.NOMBRE }}</strong>,</p>\n\n  <p>\n    La <strong>Cooperativa de Ahorro y Crédito Congente</strong> se complace en informarle\n    que se ha realizado exitosamente el <strong>desembolso correspondiente a su crédito</strong> 🤗\n  </p>\n\n  <p>\n    Adjuntamos a este mensaje el documento oficial de liquidación de su crédito.\n    Le agradecemos su atención y la confianza depositada en nuestra cooperativa.\n  </p>\n\n  <p style=\"margin-top: 25px;\">\n    Solidariamente,<br>\n    <strong>Cooperativa de Ahorro y Crédito Congente</strong><br>\n🧡\n  </p>\n\n  <hr style=\"margin: 30px 0; border: none; border-top: 1px solid #ccc;\">\n\n  <p style=\"font-size: 12px; color: #777;\">\n    ⚙ <em>Mensaje generado automáticamente por el sistema. Por favor, no responda a este correo.</em><br>\n    Si requiere asistencia adicional, comuníquese con nosotros a través de nuestros canales oficiales:\n    <a href=\"https://congente.coop/\" style=\"color: #0b5394; text-decoration: none;\">www.congente.coop</a>\n  </p>\n</div>\n",
         "options": {
           "appendAttribution": false,
-          "attachments": "=data",
-          "bccEmail": "coordinador.garantias@congente.coop"
+          "attachments": "=data"
         }
       },
       "id": "951d5c60-2128-4095-b7da-a28f231b4959",
@@ -159,7 +158,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "40a455ac-ff42-4dc7-9089-4c8c587377ed",
+  "versionId": "ae24b6b0-0d5e-4934-8e30-35dd9a43bfe3",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "cf22348bf442d0414994b184c25893f3f3c0989623f85bd8feb8ed5035be0cc0"
