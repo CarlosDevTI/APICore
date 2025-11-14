@@ -23,7 +23,6 @@ from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from .models import HistorialPDFs
 from .oracle_pool import acquire_connection
-from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -45,72 +44,72 @@ def historial_pdfs(request):
         'not_found': not_found,
     })
 
-@contextmanager
 def _get_oracle_connection():
-    """Obtiene conexión Oracle desde el pool configurado y la libera al finalizar."""
-    conn = acquire_connection()
-    try:
-        yield conn
-    finally:
-        try:
-            conn.close()  # regresa la conexión al pool
-        except Exception:
-            pass
+    """Obtiene conexión Oracle desde el pool configurado."""
+    return acquire_connection()
+
+
+def _obtener_pagare(obligacion):
+    """Convierte una obligación (ej. 10-123456789) en el pagaré esperado por Oracle."""
+    if not obligacion:
+        return ''
+    oblig_str = str(obligacion).strip()
+    if oblig_str.startswith('10-'):
+        return oblig_str[3:]
+    return oblig_str
 
 
 #? Esta funcion la vamos a dejar para llamar al procedimiento pero con el parametro obligacion y no con la fecha
-def _filtrar_flujos(obligacion=None):
+def _filtrar_flujos(pagare=None):
     """
     Llama al procedimiento almacenado SP_PLANPAGOS y retorna los flujos.
-    Se debe proporcionar obligación para mostrarlos.
+    Se puede proporcionar un pagaré para filtrar los resultados.
     """
-    
-    obligacion_filtrada = obligacion
-    if obligacion and obligacion.startswith('10-'):
-        obligacion_filtrada = obligacion[3:]
-
+    print("FILTRANDO POR PAGARE:", pagare)
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.callTimeout = getattr(settings, "ORACLE_CALL_TIMEOUT_MS", 60000)
             ref_cursor_out = cursor.var(oracledb.CURSOR)
-            #? Le pasamos la obligacion en vez de la fecha actual
-            parametros_completos = [obligacion_filtrada, ref_cursor_out]
+            
+            # Se le pasa el pagare al SP para que filtre en la base de datos.
+            parametros_completos = [pagare, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOS con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS', parametros_completos)
-            cur = ref_cursor_out.getvalue()
-            try:
-                if not cur:
-                    return []
-                cols = [c[0] for c in cur.description]
-                all_rows = [dict(zip(cols, row)) for row in cur]
-            finally:
-                try:
-                    cur.close() #* CERRAR EL CURSOR
-                except Exception:
-                    pass
+            
+            result_cursor = ref_cursor_out.getvalue()
 
+            if not result_cursor:
+                return []
+
+            try:
+                cols = [c[0] for c in result_cursor.description]
+                all_rows = [dict(zip(cols, row)) for row in result_cursor]
+            finally:
+                # Asegurarse de cerrar el cursor del procedimiento almacenado
+                if result_cursor:
+                    result_cursor.close()
+
+            if not all_rows:
+                print("El SP no retornó filas para el pagaré:", pagare)
+                return []
+
+            print("FILTRADO POR PAGARE - TOTAL ROWS:", len(all_rows))
+
+            # Procesamiento de las filas
             for row in all_rows:
                 for key, value in row.items():
                     if value is None:
                         row[key] = ''
-            #? Ahora filtramos por obligacion si se proporciona
-            if obligacion:
-                all_rows = [row for row in all_rows if str(row.get('OBLIGACION', '')).strip() == str(obligacion).strip()]
-
-            if not all_rows:
-                return []
-            
-            for row in all_rows:
+                
                 if 'MAIL' not in row or not row['MAIL']:
                     row['MAIL'] = 'no-email@example.com'
 
-            data = []
-            for row in all_rows:
                 plan_pago = []
                 nos = str(row.get('NO', '')).split(';')
                 fechas = str(row.get('FECHA', '')).split(';')
                 abonos_capital = str(row.get('ABONO_CAPITAL', '')).split(';')
                 abonos_interes = str(row.get('ABONO_INTERES', '')).split(';')
-                seguro_vida = str(row.get('SEGURO_VIDA', '')).split(';') #? EL CAMPO SEGUROS DE VIDA NO EXISTE EN DATOS DE OBLIGACION PERO SI EN CICLO DE PAGO
+                seguro_vida = str(row.get('SEGURO_VIDA', '')).split(';')
                 otros_conceptos = str(row.get('OTROS_CONCEPTOS', '')).split(';')
                 capitalizaciones = str(row.get('CAPITALIZACION', '')).split(';')
                 valores_cuota = str(row.get('VALOR_CUOTA', '')).split(';')
@@ -118,7 +117,6 @@ def _filtrar_flujos(obligacion=None):
 
                 num_cuotas = len(nos)
                 for i in range(num_cuotas):
-                    # Dentro del for i in range(num_cuotas):
                     plan_pago.append({
                         'NO': (nos[i] if i < len(nos) else '').strip(),
                         'FECHA': (fechas[i] if i < len(fechas) else '').strip(),
@@ -132,55 +130,61 @@ def _filtrar_flujos(obligacion=None):
                     })
                 
                 row['PLAN_PAGO'] = plan_pago
-                # --- FECHAULTIMA: última fecha no vacía
+                
                 fechas_no_vacias = [r['FECHA'] for r in plan_pago if r.get('FECHA')]
                 row['FECHAULTIMA'] = fechas_no_vacias[-1] if fechas_no_vacias else row.get('FECHAULTIMA', 'N/A')
 
-                # --- VALORCUOTA: toma el de NO == '1' o el primer no vacío como respaldo
                 valor_cuota_no1 = next((r.get('VALOR_CUOTA') for r in plan_pago if str(r.get('NO')) == '1' and r.get('VALOR_CUOTA')), None)
                 if not valor_cuota_no1:
                     valor_cuota_no1 = next((r.get('VALOR_CUOTA') for r in plan_pago if r.get('VALOR_CUOTA')), None)
                 row['VALORCUOTA'] = valor_cuota_no1 or row.get('VALORCUOTA', 'N/A')
-                data.append(row)
-            return data
+
+            return all_rows
 
 def _obtener_datos_basicos():
     """
-    Llama al procedimiento almacenado SP_PLANPAGOS1 y retorna todo el procedimiento.
-    Pero de aqui solo tomamos lo que nos interesa: CEDULA, NOMBRE, MAIL, OBLIGACION
+    Llama al procedimiento almacenado SP_PLANPAGOS1 y retorna los datos básicos.
+
+    De este procedimiento, nos interesan principalmente: CEDULA, NOMBRE, MAIL, OBLIGACION.
     """
     now = datetime.now()
     fecha_actual = now.strftime("%Y/%m/%d %H:%M:%S")
-    
+
     with _get_oracle_connection() as conn:
         with conn.cursor() as cursor:
             ref_cursor_out = cursor.var(oracledb.CURSOR)
             parametros_completos = [fecha_actual, ref_cursor_out]
+            
             logger.info(f"Llamando SP_PLANPAGOS1 con parametros: {parametros_completos}")
             cursor.callproc('SP_PLANPAGOS1', parametros_completos)
-            cur = ref_cursor_out.getvalue()
-            try:
-                if not cur:
-                    return []
-                cols = [c[0] for c in cur.description]
-                all_rows = [dict(zip(cols, row)) for row in cur]
-                print(all_rows)
-            finally:
-                try:
-                    cur.close() #* CERRAR EL CURSOR
-                except Exception:
-                    pass
             
+            result_cursor = ref_cursor_out.getvalue()
+            
+            if not result_cursor:
+                return []
+
+            try:
+                cols = [c[0] for c in result_cursor.description]
+                fetched_rows = result_cursor.fetchall()
+                all_rows = [dict(zip(cols, row)) for row in fetched_rows]
+            finally:
+                # Asegurarse de cerrar el cursor del procedimiento almacenado
+                if result_cursor:
+                    result_cursor.close()
+
+            # Procesar los datos obtenidos
             for row in all_rows:
+                # Reemplazar valores None por strings vacíos
                 for key, value in row.items():
                     if value is None:
                         row[key] = ''
-            
-            for row in all_rows:
-                mail_value = (
-                    row.get('MAIL')
-                )
-                row['MAIL'] = mail_value.strip()
+                
+                # Asignar un email por defecto si no existe o está vacío
+                if 'MAIL' not in row or not row['MAIL']:
+                    row['MAIL'] = 'no-email@example.com'
+
+                # Guardar el pagaré derivado de la obligación para su uso en la API
+                row['PAGARE'] = _obtener_pagare(row.get('OBLIGACION'))
 
             return all_rows
 
@@ -189,32 +193,23 @@ class ListarFlujosPendientes(APIView):
     def get(self, request):
         try:
             all_flows = _obtener_datos_basicos()
+            # Filtrar solo registros con MAIL válido y CEDULA no vacía
+            all_flows = [
+                flow for flow in all_flows
+                if flow.get("MAIL")
+                and flow.get("MAIL") != "no-email@example.com"
+                and str(flow.get("CEDULA", "")).strip()
+            ]
             summary_list = []
             for flow in all_flows:
-                cedula = str(flow.get("CEDULA", "")).strip()
-                if not cedula:
-                    continue
-                mail = (
-                    flow.get("MAIL")
-                    or flow.get("EMAIL")
-                    or flow.get("CORREO")
-                    or ""
-                ).strip()
-                if not mail:
-                    mail = "no-email@example.com"
+                pagare = flow.get("PAGARE") or _obtener_pagare(flow.get("OBLIGACION"))
                 summary_list.append({
                     "CEDULA": flow.get("CEDULA"),
                     "NOMBRE": flow.get("NOMBRE"),
-                    "MAIL": mail,
-                    "PAGARE": flow.get("PAGARE"),
+                    "MAIL": flow.get("MAIL"),
                     "OBLIGACION": flow.get("OBLIGACION"),
+                    "PAGARE": pagare,
                 })
-                # print(summary_list)
-            logger.info(
-                "ListarFlujosPendientes obtuvo %s registros y retornó %s",
-                len(all_flows),
-                len(summary_list),
-            )
             return JsonResponse(summary_list, safe=False, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error en la funcin ListarFlujosPendientes: {e}", exc_info=True)
@@ -792,6 +787,7 @@ class GenerarPDF(APIView):
         p.drawRightString(width - 40, 30, f"Página: {page_num}")
 
     def get(self, request, obligacion):
+        pagare = _obtener_pagare(obligacion)
         # Primero, verificar si el PDF para esta obligación ya existe en el historial.
         if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
             logger.info(f"La obligación {obligacion} ya tiene un PDF generado. No se generará uno nuevo.")
@@ -803,7 +799,7 @@ class GenerarPDF(APIView):
 
         try:
             # Si no existe, proceder con la lógica de generación de PDF.
-            flujos_filtrados = _filtrar_flujos(obligacion=obligacion)
+            flujos_filtrados = _filtrar_flujos(pagare=pagare or None)
             
             if not flujos_filtrados:
                 return JsonResponse({"error": "Flujo no encontrado para la obligación proporcionada"}, status=status.HTTP_404_NOT_FOUND)
