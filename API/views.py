@@ -880,3 +880,58 @@ class GenerarPDF(APIView):
         except Exception as e:
             logger.error(f"Error en GenerarPDF para obligación {obligacion}: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ValidarAsociado(APIView):
+    """
+    Endpoint para validar si una cédula corresponde a un asociado.
+    """
+    def post(self, request):
+        cedula = request.data.get('cedula')
+
+        if not cedula:
+            return JsonResponse(
+                {"error": "El campo 'cedula' es requerido."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with _get_oracle_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Preparar el cursor de salida
+                    ref_cursor_out = cursor.var(oracledb.CURSOR)
+                    
+                    # Llamar al procedimiento almacenado
+                    cursor.callproc('SP_CONSULTACAPA', [str(cedula), ref_cursor_out])
+                    
+                    result_cursor = ref_cursor_out.getvalue()
+                    
+                    if not result_cursor:
+                        return JsonResponse({"respuesta": "NO"}, status=status.HTTP_200_OK)
+
+                    try:
+                        cols = [c[0] for c in result_cursor.description]
+                        row = result_cursor.fetchone()
+                        
+                        if row:
+                            # Si hay una fila, construir el diccionario de respuesta
+                            associate_data = dict(zip(cols, row))
+                            return JsonResponse(associate_data, status=status.HTTP_200_OK)
+                        else:
+                            # Si no hay filas, el asociado no fue encontrado
+                            return JsonResponse({"respuesta": "NO"}, status=status.HTTP_200_OK)
+                    finally:
+                        if result_cursor:
+                            result_cursor.close()
+        
+        except oracledb.DatabaseError as e:
+            logger.error(f"Error de base de datos en ValidarAsociado: {e}", exc_info=True)
+            return JsonResponse(
+                {"error": "Error al consultar la base de datos."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.error(f"Error inesperado en ValidarAsociado: {e}", exc_info=True)
+            return JsonResponse(
+                {"error": "Ocurrió un error inesperado."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
