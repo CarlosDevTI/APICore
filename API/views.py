@@ -884,7 +884,12 @@ class GenerarPDF(APIView):
 class ValidarAsociado(APIView):
     """
     Endpoint para validar si una cédula corresponde a un asociado.
+    Acepta GET con parámetro en la URL y POST con la cédula en el body.
     """
+
+    def get(self, request, identificacion):
+        return self._consultar_asociado(identificacion)
+
     def post(self, request):
         cedula = request.data.get('cedula')
 
@@ -894,35 +899,32 @@ class ValidarAsociado(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        return self._consultar_asociado(cedula)
+
+    def _consultar_asociado(self, cedula):
         try:
             with _get_oracle_connection() as conn:
                 with conn.cursor() as cursor:
-                    # Preparar el cursor de salida
                     ref_cursor_out = cursor.var(oracledb.CURSOR)
-                    
-                    # Llamar al procedimiento almacenado
                     cursor.callproc('SP_CONSULTACAPA', [str(cedula), ref_cursor_out])
-                    
                     result_cursor = ref_cursor_out.getvalue()
-                    
+
                     if not result_cursor:
                         return JsonResponse({"respuesta": "NO"}, status=status.HTTP_200_OK)
 
                     try:
                         cols = [c[0] for c in result_cursor.description]
                         row = result_cursor.fetchone()
-                        
+
                         if row:
-                            # Si hay una fila, construir el diccionario de respuesta
                             associate_data = dict(zip(cols, row))
                             return JsonResponse(associate_data, status=status.HTTP_200_OK)
                         else:
-                            # Si no hay filas, el asociado no fue encontrado
                             return JsonResponse({"respuesta": "NO"}, status=status.HTTP_200_OK)
                     finally:
                         if result_cursor:
                             result_cursor.close()
-        
+
         except oracledb.DatabaseError as e:
             logger.error(f"Error de base de datos en ValidarAsociado: {e}", exc_info=True)
             return JsonResponse(
