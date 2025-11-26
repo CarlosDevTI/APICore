@@ -182,8 +182,7 @@
             </div>
             <div class="card-body-custom">
                 <form method="post">
-                    <!-- Aquí iría {% csrf_token %} en Django -->
-                    
+                    {% csrf_token %}
                     <div class="form-group">
                         <label for="username">Usuario</label>
                         <div class="input-icon">
