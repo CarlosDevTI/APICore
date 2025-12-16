@@ -1,0 +1,22 @@
+Validar Asociado (API)
+
+- Base URL: http://192.168.15.215:8010/api/
+- Content-Type: application/json
+- Auth: No requiere.
+
+GET /validar-asociado/<identificacion>/
+- Parámetro: identificacion (cédula) en la ruta.
+- Respuesta 200:
+  - Si existe: JSON con los campos devueltos del asociado (Toda la información).
+  - Si no existe: {"respuesta": "NO"}
+
+POST /validar-asociado/
+- Body JSON: {"cedula": "<numero_cedula>"}
+- Respuesta 200: igual que el GET.
+
+Ejemplos curl
+- GET:
+  curl -X GET "http://192.168.15.215:8010/api/validar-asociado/1006442329/"
+
+Red
+- Debe estar conectado dentro de la red de Congente para poder acceder al enlace y consumir la API.
