@@ -8,6 +8,7 @@ urlpatterns = [
       path('api/', include('API.urls')),
       path('api/', include('APIConsumo.urls')),
       path('api/', include('APIComercial.urls')),
+      path('api/', include('APIMicro.urls')),
       path('accounts/', include('django.contrib.auth.urls')),
 ]
 

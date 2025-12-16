@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'API',
     'APIConsumo',
     'APIComercial',
+    'APIMicro',
 
 ]
 
