@@ -202,9 +202,16 @@ class ListarFlujosPendientes(APIView):
                 and flow.get("MAIL") != "no-email@example.com"
                 and str(flow.get("CEDULA", "")).strip()
             ]
+            existing_obligaciones = set(
+                HistorialPDFs.objects.values_list("obligacion", flat=True)
+            )
             summary_list = []
             for flow in all_flows:
+                obligacion = str(flow.get("OBLIGACION", "")).strip()
                 pagare = flow.get("PAGARE") or _obtener_pagare(flow.get("OBLIGACION"))
+                pagare = str(pagare).strip()
+                if obligacion in existing_obligaciones or pagare in existing_obligaciones:
+                    continue
                 summary_list.append({
                     "CEDULA": flow.get("CEDULA"),
                     "NOMBRE": flow.get("NOMBRE"),
@@ -790,18 +797,16 @@ class GenerarPDF(APIView):
 
     def get(self, request, obligacion):
         pagare = _obtener_pagare(obligacion)
-        # Primero, verificar si el PDF para esta obligación ya existe en el historial.
-        if HistorialPDFs.objects.filter(obligacion=obligacion).exists():
-            logger.warning(
-                "Intento de generar un PDF duplicado para la obligación %s. Proceso detenido.",
-                obligacion,
-            )
-            # Devolvemos 409 Conflict para indicar que el recurso ya existe y detener el workflow.
-            # Un 204 (No Content) es una respuesta de ÉXITO, por lo que el workflow continuaría.
-            return HttpResponse(
-                content=f"CONFLICT: El PDF para la obligación {obligacion} ya existe en la base de datos.",
-                status=status.HTTP_409_CONFLICT,
-            )
+        # Si el PDF ya existe, marcar skip y no reenviar (evita doble correo/FTP).
+        historial_existente = HistorialPDFs.objects.filter(obligacion=obligacion).first()
+        if historial_existente and historial_existente.pdf_file:
+            logger.info("PDF ya existente para la obligacion %s, se marca skip.", obligacion)
+            return JsonResponse({
+                "skipped": True,
+                "reason": "already_exists",
+                "obligacion": obligacion,
+                "filename": os.path.basename(historial_existente.pdf_file.name),
+            }, status=status.HTTP_200_OK)
 
         try:
             # Si no existe, proceder con la lógica de generación de PDF.
@@ -882,4 +887,3 @@ class GenerarPDF(APIView):
         except Exception as e:
             logger.error(f"Error en GenerarPDF para obligación {obligacion}: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-

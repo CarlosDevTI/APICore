@@ -202,9 +202,16 @@ class ListarFlujosPendientes(APIView):
                 and flow.get("MAIL") != "no-email@example.com"
                 and str(flow.get("CEDULA", "")).strip()
             ]
+            existing_obligaciones = set(
+                HistorialPDFs.objects.values_list("obligacion", flat=True)
+            )
             summary_list = []
             for flow in all_flows:
+                obligacion = str(flow.get("OBLIGACION", "")).strip()
                 pagare = flow.get("PAGARE") or _obtener_pagare(flow.get("OBLIGACION"))
+                pagare = str(pagare).strip()
+                if obligacion in existing_obligaciones or pagare in existing_obligaciones:
+                    continue
                 summary_list.append({
                     "CEDULA": flow.get("CEDULA"),
                     "NOMBRE": flow.get("NOMBRE"),

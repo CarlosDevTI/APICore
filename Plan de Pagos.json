@@ -63,9 +63,7 @@
         "html": "=<div style=\"max-width: 640px; margin: 0 auto; font-family: Arial, sans-serif; color: #333;\">\n  <div style=\"text-align: center; padding: 12px 0 18px 0;\">\n    <img src=\"https://congente.coop/images/Icono/logoR.png#joomlaImage://local-images/Icono/logoR.png\" alt=\"Cooperativa Congente\" width=\"180\" style=\"border: none;\">\n  </div>\n  <p style=\"text-align: center; font-size: 15px;\">Estimado/a <strong>{{ $json.NOMBRE }}</strong>,</p>\n  <p style=\"text-align: center;\">La Cooperativa de Ahorro y Credito Congente le informa que el desembolso de su credito ha sido realizado exitosamente.</p>\n  <p style=\"text-align: center;\">Adjuntamos el documento oficial de liquidacion de su credito.</p>\n  <p style=\"text-align: center; margin-top: 24px;\">\n    Solidariamente,<br>\n    <strong>Cooperativa de Ahorro y Credito Congente</strong>\n  </p>\n  <hr style=\"margin: 30px 0; border: none; border-top: 1px solid #ddd;\">\n  <p style=\"font-size: 12px; color: #666; text-align: center;\">\n    Mensaje generado automaticamente. Por favor, no responda este correo.<br>\n    Si requiere ayuda adicional, visite <a href=\"https://congente.coop/\" style=\"color: #0b5394; text-decoration: none;\">www.congente.coop</a>\n  </p>\n</div>",
         "options": {
           "appendAttribution": false,
-          "attachments": [
-            "data"
-          ]
+          "attachments": "data"
         }
       },
       "id": "951d5c60-2128-4095-b7da-a28f231b4959",
