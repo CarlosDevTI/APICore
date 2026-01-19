@@ -26,6 +26,9 @@ from API.oracle_pool import acquire_connection
 
 logger = logging.getLogger(__name__)
 
+class OracleExactFetchError(Exception):
+    """Raised when Oracle returns ORA-01422 from SP_PLANPAGOSCONSUMO."""
+
 @login_required
 def historial_pdfs(request):
     query = (request.GET.get('q') or '').strip()
@@ -74,7 +77,18 @@ def _filtrar_flujos(pagare=None):
             # Se le pasa el pagare al SP para que filtre en la base de datos.
             parametros_completos = [pagare, ref_cursor_out]
             logger.info(f"Llamando SP_PLANPAGOSCONSUMO con parametros: {parametros_completos}")
-            cursor.callproc('SP_PLANPAGOSCONSUMO', parametros_completos)
+            try:
+                cursor.callproc('SP_PLANPAGOSCONSUMO', parametros_completos)
+            except oracledb.DatabaseError as exc:
+                message = str(exc)
+                if "ORA-01422" in message:
+                    logger.error(
+                        "ORA-01422 in SP_PLANPAGOSCONSUMO for pagare=%s",
+                        pagare,
+                        exc_info=True,
+                    )
+                    raise OracleExactFetchError(message) from exc
+                raise
             
             result_cursor = ref_cursor_out.getvalue()
 
@@ -812,7 +826,17 @@ class GenerarPDF(APIView):
 
         try:
             # Si no existe, proceder con la lógica de generación de PDF.
-            flujos_filtrados = _filtrar_flujos(pagare=pagare or None)
+            try:
+                flujos_filtrados = _filtrar_flujos(pagare=pagare or None)
+            except OracleExactFetchError as exc:
+                return JsonResponse(
+                    {
+                        "error": "ORA-01422",
+                        "detail": "SP_PLANPAGOSCONSUMO returned multiple rows for a single fetch.",
+                        "message": str(exc),
+                    },
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
             
             if not flujos_filtrados:
                 return JsonResponse({"error": "Flujo no encontrado para la obligación proporcionada"}, status=status.HTTP_404_NOT_FOUND)
