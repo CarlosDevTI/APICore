@@ -155,6 +155,94 @@ def _filtrar_flujos(pagare=None):
 
             return all_rows
 
+
+def _filtrar_flujos_individual(pagare=None):
+    """
+    Llama al procedimiento almacenado SP_PLANPAGOSCONSUMOINDIVIDUAL y retorna los flujos.
+    Se puede proporcionar un pagaré para filtrar los resultados.
+    """
+    print("FILTRANDO POR PAGARE (INDIVIDUAL):", pagare)
+    with _get_oracle_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.callTimeout = getattr(settings, "ORACLE_CALL_TIMEOUT_MS", 60000)
+            ref_cursor_out = cursor.var(oracledb.CURSOR)
+
+            parametros_completos = [pagare, ref_cursor_out]
+            logger.info(f"Llamando SP_PLANPAGOSCONSUMOINDIVIDUAL con parametros: {parametros_completos}")
+            try:
+                cursor.callproc('SP_PLANPAGOSCONSUMOINDIVIDUAL', parametros_completos)
+            except oracledb.DatabaseError as exc:
+                message = str(exc)
+                if "ORA-01422" in message:
+                    logger.error(
+                        "ORA-01422 in SP_PLANPAGOSCONSUMOINDIVIDUAL for pagare=%s",
+                        pagare,
+                        exc_info=True,
+                    )
+                    raise OracleExactFetchError(message) from exc
+                raise
+
+            result_cursor = ref_cursor_out.getvalue()
+
+            if not result_cursor:
+                return []
+
+            try:
+                cols = [c[0] for c in result_cursor.description]
+                all_rows = [dict(zip(cols, row)) for row in result_cursor]
+            finally:
+                if result_cursor:
+                    result_cursor.close()
+
+            if not all_rows:
+                print("El SP individual no retornó filas para el pagaré:", pagare)
+                return []
+
+            for row in all_rows:
+                for key, value in row.items():
+                    if value is None:
+                        row[key] = ''
+
+                if 'MAIL' not in row or not row['MAIL']:
+                    row['MAIL'] = 'no-email@example.com'
+
+                plan_pago = []
+                nos = str(row.get('NO', '')).split(';')
+                fechas = str(row.get('FECHA', '')).split(';')
+                abonos_capital = str(row.get('ABONO_CAPITAL', '')).split(';')
+                abonos_interes = str(row.get('ABONO_INTERES', '')).split(';')
+                seguro_vida = str(row.get('SEGURO_VIDA', '')).split(';')
+                otros_conceptos = str(row.get('OTROS_CONCEPTOS', '')).split(';')
+                capitalizaciones = str(row.get('CAPITALIZACION', '')).split(';')
+                valores_cuota = str(row.get('VALOR_CUOTA', '')).split(';')
+                saldos_parcial = str(row.get('SALDO_PARCIAL', '')).split(';')
+
+                num_cuotas = len(nos)
+                for i in range(num_cuotas):
+                    plan_pago.append({
+                        'NO': (nos[i] if i < len(nos) else '').strip(),
+                        'FECHA': (fechas[i] if i < len(fechas) else '').strip(),
+                        'ABONO_CAPITAL': (abonos_capital[i] if i < len(abonos_capital) else '').strip(),
+                        'ABONO_INTERES': (abonos_interes[i] if i < len(abonos_interes) else '').strip(),
+                        'SEGURO_VIDA': (seguro_vida[i] if i < len(seguro_vida) else '').strip(),
+                        'OTROS_CONCEPTOS': (otros_conceptos[i] if i < len(otros_conceptos) else '').strip(),
+                        'CAPITALIZACION': (capitalizaciones[i] if i < len(capitalizaciones) else '').strip(),
+                        'VALOR_CUOTA': (valores_cuota[i] if i < len(valores_cuota) else '').strip(),
+                        'SALDO_PARCIAL': (saldos_parcial[i] if i < len(saldos_parcial) else '').strip(),
+                    })
+
+                row['PLAN_PAGO'] = plan_pago
+
+                fechas_no_vacias = [r['FECHA'] for r in plan_pago if r.get('FECHA')]
+                row['FECHAULTIMA'] = fechas_no_vacias[-1] if fechas_no_vacias else row.get('FECHAULTIMA', 'N/A')
+
+                valor_cuota_no1 = next((r.get('VALOR_CUOTA') for r in plan_pago if str(r.get('NO')) == '1' and r.get('VALOR_CUOTA')), None)
+                if not valor_cuota_no1:
+                    valor_cuota_no1 = next((r.get('VALOR_CUOTA') for r in plan_pago if r.get('VALOR_CUOTA')), None)
+                row['VALORCUOTA'] = valor_cuota_no1 or row.get('VALORCUOTA', 'N/A')
+
+            return all_rows
+
 def _obtener_datos_basicos():
     """
     Llama al procedimiento almacenado SP_PLANPAGOSCONSUMO1 y retorna los datos básicos.
@@ -239,6 +327,8 @@ class ListarFlujosPendientes(APIView):
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GenerarPDF(APIView):
+    def obtener_flujos(self, pagare):
+        return _filtrar_flujos(pagare=pagare or None)
 
     def _parse_number(self, s):
         """
@@ -827,7 +917,7 @@ class GenerarPDF(APIView):
         try:
             # Si no existe, proceder con la lógica de generación de PDF.
             try:
-                flujos_filtrados = _filtrar_flujos(pagare=pagare or None)
+                flujos_filtrados = self.obtener_flujos(pagare)
             except OracleExactFetchError as exc:
                 return JsonResponse(
                     {
@@ -913,3 +1003,9 @@ class GenerarPDF(APIView):
         except Exception as e:
             logger.error(f"Error en GenerarPDF para obligación {obligacion}: {e}", exc_info=True)
             return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GenerarPDFContingencia(GenerarPDF):
+    """Genera PDF con el procedimiento SP_PLANPAGOSCONSUMOINDIVIDUAL."""
+    def obtener_flujos(self, pagare):
+        return _filtrar_flujos_individual(pagare=pagare or None)
